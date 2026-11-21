@@ -803,6 +803,8 @@ add({
   "Выкл": "Off",
   "500 МБ": "500 MB", "1 ГБ": "1 GB", "2 ГБ": "2 GB", "5 ГБ": "5 GB", "10 ГБ": "10 GB",
   "Сохранять текущий плейлист": "Keep the current playlist",
+  "Загружать следующий трек заранее": "Preload the next track",
+  "Пока играет трек, следующий из очереди (лайки, плейлист, Моя волна, комната «Слушать вместе») уже ложится на диск — переключение без ожидания сети. Работает, когда кэш включён": "While a track plays, the next one in the queue (likes, playlist, My Wave, a Listen Together room) is saved to disk, so switching doesn't wait for the network. Works when the cache is on",
   "Папка кэша": "Cache folder",
   "Популярные": "Popular",
   "Плейлист": "Playlist",

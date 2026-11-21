@@ -572,9 +572,21 @@
   }
 
   // ---------- карточки стилей ----------
+  // Карточки перерисовываются при каждом открытии настроек (фоны могли догрузиться). Ничего не поменялось — старые
+  // остаются: пересборка всех карточек с картинками была заметной частью задержки открытия настроек.
+  let cardsSig = "";
   function renderCards() {
     const pick = document.querySelector(".stylepick");
     if (!pick) return;
+    const sig = JSON.stringify(cfg.themes.map((t) => {
+      const s = cfg.s[t.id] || {};
+      return [t.id, t.name, t.author, t.desc, t.base, s.accent, s.accent2, previews.get(t.id) || (bgKinds[t.id] === "video" ? bgPosters[t.id] : bgUrls[t.id]) || ""];
+    }));
+    if (sig === cardsSig && pick.querySelectorAll(".stylecard.custom").length === cfg.themes.length) {
+      applyView(); syncControls(); paintIntro();
+      return;
+    }
+    cardsSig = sig;
     pick.querySelectorAll(".stylecard.custom").forEach((x) => x.remove());
     for (const t of cfg.themes) {
       const s = cfg.s[t.id] || {};
@@ -734,29 +746,48 @@
   });
 
   // ---------- запуск: подключить сохранённые стили ----------
+  // Окно показывается, когда готов ТЕКУЩИЙ стиль (bootMark). Раньше перед показом читались и разбирались все темы
+  // подряд (архивы с фоном — десятки мс каждая) — запуск ждал ~0,7 с. Остальные подключаются потом, в свободное время;
+  // выбрали стиль раньше, чем он подключился, — он применится сам, как только подключится.
   (async () => {
     mountUi();
-    let changed = false, curTh = null;
-    for (const t of [...cfg.themes]) {
+    let changed = false;
+    async function loadOne(t) {
       try {
         const th = await loadStored(t.id);
         if (!th) throw new Error("нет файла");
-        if (t.id === cfg.style) curTh = th;              // интро текущего стиля — без второго чтения из IndexedDB
         meta.set(t.id, { manifest: th.manifest, tokens: th.tokens, settings: th.settings(APP), obs: obsOf(th), intro: TC.introInfo(th) });
         const au = authorOf(th.manifest);                 // темы, загруженные до появления подписи автора
         if ((t.author || "") !== au) { t.author = au; changed = true; }
         setFeatures(t.id, th.settings(APP), th);
         inject(t.id, th);
+        return th;
       } catch (e) {
         console.warn(`Стиль ${t.id} не загружен:`, e?.message);
         cfg.themes = cfg.themes.filter((x) => x.id !== t.id); delete cfg.s[t.id]; changed = true;
         if (cfg.style === t.id) cfg.style = t.base;
+        return null;
       }
     }
-    if (changed) saveCfg();
+    const first = cfg.themes.find((t) => t.id === cfg.style);
+    const curTh = first ? await loadOne(first) : null;     // интро текущего стиля — без второго чтения из IndexedDB
+    if (changed) { saveCfg(); changed = false; }
     applyCfg(); renderCards();
-    window.bootMark?.("themes");      // boot.js: CSS своих тем подключены — можно показывать интерфейс
+    window.bootMark?.("themes");      // boot.js: CSS текущего стиля подключён — можно показывать интерфейс
     if (curTh && cfg.style) playIntro(cfg.style, { th: curTh });      // интро — после шторки запуска
+
+    const rest = cfg.themes.filter((t) => t !== first);
+    if (!rest.length) return;
+    await new Promise((r) => setTimeout(r, 1500));          // окно уже на экране, первые кадры — без помех
+    const idle = () => new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 2000 }) : setTimeout(r, 50)));
+    for (const t of rest) {
+      if (!cfg.themes.includes(t) || themeReady.has(t.id)) continue;   // удалили или уже подключил импорт
+      await idle();
+      await loadOne(t);
+      if (t.id === cfg.style) applyCfg();                  // этот стиль выбрали, пока он ждал очереди
+    }
+    if (changed) saveCfg();
+    renderCards();
   })();
 
   window.wmtInternals = { splitTop, scopeSel, scopeCss, cssParse, extractCss, buildFile, importText };      // для отладки и тестов

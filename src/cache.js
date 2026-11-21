@@ -29,6 +29,16 @@
 
   window.appCache = {
     has: (id) => limitMb > 0 && ids.has(String(id)),
+    enabled: () => limitMb > 0,
+    // трек лёг в кэш заранее (prefetch.js): играет с диска, а без сети виден в «Лайках» с описанием.
+    // Список заново: Rust мог убрать старые загруженные заранее (их держится несколько) — иначе play() искал бы их на диске
+    remember: async (id, t) => {
+      id = String(id);
+      await loadIds();
+      ids.add(id);
+      if (t?.title && typeof trackMin === "function") { meta[id] = { ...trackMin(t), _at: Date.now() }; saveMeta(); }
+      refreshInfo();
+    },
     forget: (id) => { ids.delete(String(id)); delete meta[String(id)]; saveMeta(); invoke("cache_forget", { id: String(id) }).catch(() => {}); },
     ids: () => [...ids],
     // треки кэша с описанием — новые сверху (без описания не показываем: не знаем даже названия)
@@ -54,14 +64,27 @@
   const isWave = () => W.player.state().context?.type === "radio";
 
   // ---------- дослушан ли трек ----------
-  let started = null, reported = "", source = "";
+  let started = null, reported = "", source = "", pending = null, pendT = 0;
+  // Трек играет потоком из сети, а кэшу нужен его файл: Rust качает его целиком отдельно. Посреди трека на слабом
+  // соединении эта вторая загрузка отнимала канал у плеера — звук замолкал на несколько секунд. Теперь ждём, пока
+  // плеер сам догрузит трек до конца, а если переключили раньше — качаем через 15 с после старта следующего.
+  const loadedAll = () => {
+    try {
+      const a = typeof audio !== "undefined" ? audio : null;
+      if (!a || a._native) return true;                 // свой движок качает трек сам, целиком
+      const d = a.duration, b = a.buffered;
+      return d > 0 && b.length > 0 && b.end(b.length - 1) >= d - 0.5;
+    } catch { return true; }
+  };
   W.on("start", ({ track: t }) => {
+    if (pending) { const job = pending; pending = null; clearTimeout(pendT); pendT = setTimeout(() => send(job), 15000); }
     started = t ? String(t.id) : null; reported = "";
     // трек уже в кэше, а описания нет (попал туда до того, как описание стали сохранять) — дописываем
     if (started && ids.has(started) && !meta[started] && t.title && typeof trackMin === "function") { meta[started] = { ...trackMin(t), _at: Date.now() }; saveMeta(); }
   });
   W.on("source", ({ source: s }) => { source = s || ""; });
   setInterval(() => {
+    if (pending && loadedAll()) { const job = pending; pending = null; send(job); }
     if (!started || reported === started) return;      // считаем и при выключенном кэше: счётчик «популярных» пригодится
     const s = W.player.state(), m = W.player.media();
     if (String(s.track?.id ?? "") !== started || m.loading || m.pending) return;
@@ -72,8 +95,13 @@
     if (!/^\d{1,20}$/.test(id)) return;                    // не трек Яндекса
     // скачан или играет из архива — в кэш не нужен (но прослушивание посчитается для «популярных»)
     const downloaded = (typeof got !== "undefined" && got.has(id)) || source === "archive" || source === "local";
-    const tr = s.track;
-    invoke("cache_played", { id, ctx: keepPl ? ctxKey() : null, wave: isWave(), downloaded })
+    const job = { id, ctx: keepPl ? ctxKey() : null, wave: isWave(), downloaded, tr: s.track };
+    // играет потоком из сети и ещё не догружен — файл для кэша возьмём позже (см. loadedAll)
+    if (!downloaded && source === "provider" && !ids.has(id) && !loadedAll()) { pending = job; return; }
+    send(job);
+  }, 3000);
+  function send({ id, ctx, wave, downloaded, tr }) {
+    invoke("cache_played", { id, ctx, wave, downloaded })
       .then((inCache) => {
         if (inCache) {
           ids.add(id);
@@ -82,7 +110,18 @@
         refreshInfo();
       })
       .catch(() => {});
-  }, 3000);
+  }
+  // prefetch.js: не качать следующий, пока текущий сам ещё грузится из сети и запаса впереди мало. Плеер Chromium
+  // не тянет трек до конца сразу — держит запас и докачивает по ходу, поэтому «догружен целиком» бывает только под конец.
+  // Запас в 30 с и больше — канала хватает на двоих (трек 320 кбит/с, а не весь канал).
+  const ahead = () => {
+    try {
+      const a = audio, b = a.buffered, t = a.currentTime;
+      for (let k = 0; k < b.length; k++) if (b.start(k) <= t + 0.5 && b.end(k) > t) return b.end(k) - t;
+    } catch {}
+    return 0;
+  };
+  window.appCache.streaming = () => (source === "provider" || source === "archive") && !loadedAll() && ahead() < 30;
 
   // ---------- настройки ----------
   const mb = (n) => (n >= 1024 * 1024 * 1024 ? (n / 1024 / 1024 / 1024).toFixed(1).replace(".", ",") + " ГБ" : Math.round(n / 1024 / 1024) + " МБ");
@@ -102,6 +141,7 @@
     for (const b of $c("cacheLimit").querySelectorAll(".chip")) b.classList.toggle("active", +b.dataset.v === i.limit_mb);
     $c("cachePl").checked = i.playlist;
     $c("cachePl").disabled = i.limit_mb === 0;
+    if ($c("pfOn")) $c("pfOn").disabled = i.limit_mb === 0;      // загрузка заранее (prefetch.js) кладёт трек в кэш
     $c("cachePath").textContent = i.dir;
     $c("cachePath").title = i.dir;
     for (const b of $c("cacheWave").querySelectorAll(".chip")) {

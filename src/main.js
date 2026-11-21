@@ -1,6 +1,8 @@
+window.perfMark?.("main:start");
 const invoke = async (cmd, args) => {
-  try { return await window.__TAURI__.core.invoke(cmd, args); }
-  catch (e) { throw e instanceof Error ? e : new Error(String(e)); }
+  const pf = window.perfIpc, t0 = pf ? performance.now() : 0;      // замеры (perf.js): только при WHISPER_PERF
+  try { const r = await window.__TAURI__.core.invoke(cmd, args); pf?.(cmd, args, t0, r); return r; }
+  catch (e) { pf?.(cmd, args, t0, null, e); throw e instanceof Error ? e : new Error(String(e)); }
 };
 
 const OAUTH_URL =
@@ -361,6 +363,15 @@ const curBg = () => bgUrls[cfg.style] || "";
 const curBgVideo = () => bgKinds[cfg.style] === "video";
 
 function fill(el) { el.style.setProperty("--p", ((el.value - el.min) / (el.max - el.min)) * 100 + "%"); }
+// Текст, который меняется часто (время трека): меняем данные готового текстового узла, а не textContent —
+// textContent пересоздаёт узел, а это изменение структуры: браузер перепроверяет :has() у предков (в CSS тем тоже)
+// и пересчитывает стили широко.
+function setText(el, s) {
+  if (!el) return;
+  const n = el.firstChild;
+  if (n && n.nodeType === 3 && !n.nextSibling) { if (n.data !== s) n.data = s; }
+  else if (el.textContent !== s) el.textContent = s;
+}
 function fillAll() { document.querySelectorAll("input[type=range]").forEach(fill); }
 
 function hexRgb(h) { const m = /^#?([0-9a-f]{6})$/i.exec(h || ""); if (!m) return null; const n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
@@ -860,6 +871,7 @@ function applyCfg() {
   const r = document.documentElement.style, base = baseOf();
   const st = dynColorsOn() && dynPal ? { ...sty(), accent: dynPal.accent, accent2: dynPal.accent2 } : sty();
   document.body.classList.toggle("dyn-on", cfg.dyn === true);
+  document.documentElement.classList.toggle("dyn-on", cfg.dyn === true);     // для :root.dyn-on в styles.css (вместо :root:has)
   // свой стиль, чей CSS ещё не подключён (идёт загрузка при старте), временно показывается как его основа
   document.documentElement.dataset.style = BUILTIN.includes(cfg.style) || themeReady.has(cfg.style) ? cfg.style : base;
   document.documentElement.dataset.base = base;
@@ -3893,11 +3905,12 @@ function openFull() {
   const t = queue[current];
   if (!t) return;
   $("#full").hidden = false; syncBgVideo();      // плеер закрывает фон целиком — видеообои на паузу
+  document.body.classList.add("full-open");      // styles.css: фон под плеером не анимируется (вместо body:has)
   fillFull(t);
   fLast = { cur: -1, dur: -1, tc: "", td: "" };
   if (!fullRun) { fullRun = true; requestAnimationFrame(fullFrame); }
 }
-function closeFull() { $("#full").hidden = true; fullRun = false; fullSeq++; $("#fSrc").classList.remove("busy"); syncBgVideo(); }
+function closeFull() { $("#full").hidden = true; document.body.classList.remove("full-open"); fullRun = false; fullSeq++; $("#fSrc").classList.remove("busy"); syncBgVideo(); }
 
 let fLast = { cur: -1, dur: -1, tc: "", td: "" };
 function fullFrame() {
@@ -3912,8 +3925,8 @@ function fullFrame() {
   fLast.cur = cur; fLast.dur = dur;
   if (!fDrag) { $("#fSeek").value = dur ? (cur / dur) * 1000 : 0; fill($("#fSeek")); }
   const tc = fmtTime(cur), td = fmtTime(dur);
-  if (tc !== fLast.tc) { $("#fTCur").textContent = tc; fLast.tc = tc; }
-  if (td !== fLast.td) { $("#fTDur").textContent = td; fLast.td = td; }
+  if (tc !== fLast.tc) { setText($("#fTCur"), tc); fLast.tc = tc; }
+  if (td !== fLast.td) { setText($("#fTDur"), td); fLast.td = td; }
   if (!fLines.length) return;
   let lo = 0, hi = fLines.length - 1, idx = -1;
   const x = cur + 0.2;
@@ -4959,8 +4972,11 @@ $("#dlOpen").onclick = async () => {
 async function directLink(id) {
   return await invoke("ym_track_url", { id: String(id), quality: window.ymQuality?.() || "high" });
 }
+// подсветка играющей строки: трогаем только прошлую и новую, а не все строки списка (в «Лайках» их тысячи)
 function markPlaying() {
-  document.querySelectorAll(".list li").forEach((li) => li.classList.toggle("playing", li.dataset.id === String(playingId)));
+  const id = String(playingId);
+  document.querySelectorAll(".list li.playing").forEach((li) => { if (li.dataset.id !== id) li.classList.remove("playing"); });
+  document.querySelectorAll(`.list li[data-id="${CSS.escape(id)}"]`).forEach((li) => li.classList.add("playing"));
 }
 
 // Смена обложки в плеере. Если стиль задаёт анимации .cover.flip-out / .flip-in (Королевский — «монета»),
@@ -4968,7 +4984,19 @@ function markPlaying() {
 // Анимаций нет (другой стиль, выключены «Анимации интерфейса») — картинка меняется сразу.
 let coverSeq = 0;
 const newAnims = (el, before) => el.getAnimations?.().filter((a) => !before.includes(a)) || [];
-async function swapCover(src) {
+// getAnimations() заставляет браузер сразу пересчитать стили (а showTrack только что поменял строки списка, название,
+// сердечки) — в «Лайках» это 55–90 мс прямо внутри play(), до запуска звука. Поэтому обложка меняется в начале
+// следующего кадра: пересчёт стилей там нужен в любом случае, и play() его больше не ждёт.
+let coverWant = "", coverRaf = 0;
+function swapCover(src) {
+  if (document.hidden) {
+    if (coverRaf) { cancelAnimationFrame(coverRaf); coverRaf = 0; }
+    ++coverSeq; const el = $("#cover"); el.classList.remove("flip-out", "flip-in"); el.src = src || COVER_W; return;
+  }
+  coverWant = src;            // несколько смен за кадр (быстро листают) — берётся последняя
+  if (!coverRaf) coverRaf = requestAnimationFrame(() => { coverRaf = 0; swapCoverNow(coverWant); });
+}
+async function swapCoverNow(src) {
   src = src || COVER_W;           // нет обложки (или офлайн) — сразу заглушка, без запроса
   const el = $("#cover"), my = ++coverSeq;
   el.classList.remove("flip-out", "flip-in");
@@ -5000,22 +5028,30 @@ $("#waveBtn").addEventListener("pointerdown", (e) => {
 $("#waveBtn").addEventListener("animationend", (e) => { if (e.target === e.currentTarget && e.animationName.endsWith("royalStamp")) e.currentTarget.classList.remove("stamp"); });
 
 function showTrack(t, pos = 0) {
-  playingId = t.id; markPlaying();
+  // замеры (perf.js): сколько занимает каждый шаг — пишется, только когда замеры включены
+  const pm = window.perfMark, ps = [];
+  let pt0 = pm ? performance.now() : 0;
+  const step = pm ? (n) => { const x = performance.now(); ps.push(`${n} ${Math.round(x - pt0)}`); pt0 = x; } : () => {};
+  playingId = t.id; markPlaying(); step("строки");
   const pt = $("#pTitle");
   pt.textContent = t.title;
   pt.classList.toggle("link", !!albumOf(t));
-  fillArtists($("#pArtist"), t);
-  swapCover(cover(t));
-  dynUpdate(t);
+  fillArtists($("#pArtist"), t); step("название");
+  swapCover(cover(t)); step("обложка");
+  dynUpdate(t); step("фон");
   const dur = (t.durationMs || 0) / 1000;
   $("#tCur").textContent = fmtTime(pos); $("#tDur").textContent = fmtTime(dur);
   $("#seek").value = dur ? (pos / dur) * 1000 : 0; fill($("#seek"));
   if (wave.on || window.roomInfo?.()) showNow(t);
   else if (!$("#wavePage").hidden) waveHead();         // волна выключилась — не оставлять наверху старое название
-  refreshHearts(); updateModes();
+  step("время");
+  refreshHearts(); step("сердечки");
+  updateModes(); step("режимы");
   if (!$("#full").hidden) fillFull(t);
   // в конце: к этому моменту обложка, цвета и режимы уже новые — модули (Discord, мини-плеер, OBS) берут их отсюда
   wReport({ track: t, position: pos, liked: isLiked(String(t.id)), disliked: dislikedIds.has(String(t.id)), queue: true });
+  step("модули");
+  if (pm) pm("showTrack", ps.join(" · "));
 }
 
 function saveLast(pos = 0) {
@@ -5048,6 +5084,7 @@ async function restorePlayer() {
       }
       resumePos = saved.pos || 0; needLoad = true;
       showTrack(queue[0], resumePos);
+      window.perfMark?.("player:restored");
       // страница волны уже нарисована (startPage идёт раньше) — с прежней подписью: волна по жанру, альбому или
       // «для сна» (она в ym_wave_seed не пишется) после перезапуска играла, а кнопка говорила «Жанры и настроения»
       updateStBtn();
@@ -5078,7 +5115,10 @@ async function play(i, resumeAt = 0, isRetry = false, hold = false) {
   if (i >= queue.length) { loadAt = 0; setTransit(false); return; }
   current = i; needLoad = false;
   const t = queue[i];
+  window.perfMark?.("play:start", `${t.id}${isRetry ? " повтор" : ""}`);
+  const pf0 = window.perfMark ? performance.now() : 0;
   showTrack(t, resumeAt);
+  if (pf0) window.perfMark?.("play:showTrack", `${Math.round(performance.now() - pf0)} мс`);
   if (shuffle) {
     if (orderFor !== queue || order.length !== queue.length) buildOrder();
     else { const k = order.indexOf(i); if (k >= 0) ordPos = k; }
@@ -5137,6 +5177,7 @@ async function play(i, resumeAt = 0, isRetry = false, hold = false) {
     curCache = !!local && inCache;
     wReport({ source: curCache ? "cache" : local ? "local" : wa ? wa.source : "provider" });     // печать «WA» на обложке и т.п.
     curFromWa = !!wa; curLocal = !!local;
+    window.perfMark?.("play:src", `${curCache ? "cache" : local ? "local" : wa ? wa.source : "provider"}${audio._native ? " движок" : ""}${wantViz ? " визуализатор" : ""}`);
     let src = null;
     if (audio._native) {
       // свой движок сам берёт файл по номеру: скачанный, из архива или у Яндекса (в выбранном качестве)
@@ -5177,6 +5218,7 @@ async function play(i, resumeAt = 0, isRetry = false, hold = false) {
       playFail = 0; loadAt = 0; setTransit(false);
       return;
     }
+    window.perfMark?.("play:call");
     try { await audio.play(); playFail = 0; }
     catch (err) {
       if (my !== playSeq) return;
@@ -5369,6 +5411,7 @@ function makeAudio(useViz, nat = false) {
     applySpeed(a);
     if (a === audio) {
       loadAt = 0; wdPos = -1; wdAt = 0; if (transit) setTransit(false);
+      window.perfMark?.("play:audible");
       wReport({ audible: true });         // звук пошёл — «Слушать вместе»: ведущий сообщает старт, гость догоняет (core/together.js)
     }
   };
@@ -5405,9 +5448,8 @@ function makeAudio(useViz, nat = false) {
   a.ontimeupdate = () => {
     if (a === audio && a.duration) {
       if (!seekDrag) { $("#seek").value = (a.currentTime / a.duration) * 1000; fill($("#seek")); }   // не вырывать ползунок из-под руки
-      const tc = fmtTime(a.currentTime), td = fmtTime(a.duration);
-      if ($("#tCur").textContent !== tc) $("#tCur").textContent = tc;
-      if ($("#tDur").textContent !== td) $("#tDur").textContent = td;
+      setText($("#tCur"), fmtTime(a.currentTime));
+      setText($("#tDur"), fmtTime(a.duration));
       if (Date.now() - lastSave > 5000) { lastSave = Date.now(); saveLast(a.currentTime); }
     }
   };
@@ -5865,6 +5907,18 @@ $("#volBtn").addEventListener("keydown", (e) => {
   if (d) { e.preventDefault(); e.stopPropagation(); setVol(volume + d); }
 });
 $("#volWrap").addEventListener("wheel", (e) => { e.preventDefault(); setVol(volume + (e.deltaY < 0 ? 0.05 : -0.05)); }, { passive: false });
+// Окно громкости открыто (наведение или фокус) — html.vol-open: плеер встаёт над «Очередью», ручка размера панели
+// не ловит курсор (styles.css, layout.css). Раньше это делал html:has(.player .volwrap:hover…) — из-за него каждое
+// изменение внутри плеера пересчитывало стили всего окна (в «Лайках» ~70 мс раз в секунду, на обновлении времени).
+(() => {
+  const w = $("#volWrap");
+  let hov = false, foc = false;
+  const upd = () => document.documentElement.classList.toggle("vol-open", hov || foc);
+  w.addEventListener("pointerenter", () => { hov = true; upd(); });
+  w.addEventListener("pointerleave", () => { hov = false; upd(); });
+  w.addEventListener("focusin", () => { foc = true; upd(); });
+  w.addEventListener("focusout", (e) => { if (!w.contains(e.relatedTarget)) { foc = false; upd(); } });
+})();
 $("#seek").addEventListener("input", (e) => { if (audio.duration) audio.currentTime = (e.target.value / 1000) * audio.duration; });
 // Перемотка щелчком. У <input type=range> щелчок по самому кружку не двигает его — это начало перетаскивания,
 // а кружок стоит ровно там, куда только что щёлкнули: повторный щелчок рядом «не срабатывал», пока трек его не
@@ -6006,6 +6060,7 @@ audio = makeAudio(false);
 setVol(volume);
 updateModes(); setHeart($("#likeBtn"), false); setHeart($("#fLike"), false);
 syncIcons();
+window.perfMark?.("main:end");
 (async () => {
   loadGot();
   const migMsg = await migrateLegacyToken();

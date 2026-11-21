@@ -647,6 +647,12 @@ pub fn open_local(app: &AppHandle, id: &str) -> Option<(std::fs::File, PathBuf, 
     }
 }
 
+/// Скачан ли трек (по индексу, файл не открываем) — кэшу не нужно качать его заранее (cache::cache_prefetch).
+pub fn has_local(app: &AppHandle, id: &str) -> bool {
+    let _guard = INDEX_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    read_index(app).contains_key(id)
+}
+
 #[tauri::command]
 pub fn downloaded_ids(app: AppHandle) -> Vec<String> {
     live_index(&app).into_keys().collect()

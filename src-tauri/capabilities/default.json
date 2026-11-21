@@ -38,6 +38,7 @@
       ]
     },
     "allow-app-ready",
+    "allow-perf-log",
     "allow-win-minimize",
     "allow-win-toggle-max",
     "allow-win-is-max",
@@ -89,6 +90,7 @@
     "allow-cache-forget",
     "allow-cache-open-dir",
     "allow-cache-played",
+    "allow-cache-prefetch",
     "allow-downloaded-ids",
     "allow-downloaded-tracks",
     "allow-downloaded-meta",

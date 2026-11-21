@@ -52,9 +52,10 @@ fn read_token() -> Option<String> {
 fn build_client(total_secs: u64, same_host: bool) -> Client {
     Client::builder()
         .connect_timeout(Duration::from_secs(10))
-        // за многочасовое прослушивание соединения из пула успевают «протухнуть» на стороне сервера/роутера —
-        // держим их недолго и поддерживаем keepalive, чтобы запрос не уходил в мёртвый сокет
-        .pool_idle_timeout(Duration::from_secs(20))
+        // соединение живёт между треками (трек идёт 3–4 минуты, а запросы к Яндексу — в начале трека): новое
+        // TLS-рукопожатие — лишние 100–300 мс на каждом переключении. За многочасовое прослушивание сокет может
+        // «протухнуть» на стороне сервера или роутера — от этого keepalive раз в 30 с
+        .pool_idle_timeout(Duration::from_secs(300))
         .tcp_keepalive(Duration::from_secs(30))
         .timeout(Duration::from_secs(total_secs))
         .redirect(redirect::Policy::custom(move |attempt| {

@@ -11,6 +11,8 @@
   <!-- без defer, сразу после boot.js: телефон — класс html.mobile до первой отрисовки (mobile.js, mobile.css) -->
   <script src="mobile.js"></script>
   <script src="lsguard.js"></script>
+  <!-- замеры скорости (perf.js): работают, только если приложение запущено с WHISPER_PERF=<файл> -->
+  <script src="perf.js"></script>
   <!-- язык интерфейса: словарь и переводчик, тоже без defer — успеть до первой отрисовки -->
   <script src="i18n/en.js"></script>
   <script src="i18n.js"></script>
@@ -71,6 +73,7 @@
   <!-- кэш приложения: популярные нескачанные треки и проигранное из текущего плейлиста (cache.rs) -->
   <link rel="stylesheet" href="cache.css" />
   <script src="cache.js" defer></script>
+  <script src="prefetch.js" defer></script>
   <!-- кэш страниц: снимок «Лайков» на диске — карточка в настройках «Воспроизведение» (main.js → window.pageCache) -->
   <script src="pagecache.js" defer></script>
   <!-- «Поделиться» в меню трека и ссылки whisper:// / music.yandex.* — открываются здесь, а не в браузере -->
@@ -496,6 +499,7 @@
             <button class="chip" data-v="10240">10 ГБ</button>
           </div></div>
           <label class="switch" title="Проигранные треки текущего альбома или плейлиста остаются на диске, пока ты его слушаешь; переключился на другой — удаляются. Популярные треки остаются"><input type="checkbox" id="cachePl" /><i></i><span>Сохранять текущий плейлист</span></label>
+          <label class="switch" title="Пока играет трек, следующий из очереди (лайки, плейлист, Моя волна, комната «Слушать вместе») уже ложится на диск — переключение без ожидания сети. Работает, когда кэш включён"><input type="checkbox" id="pfOn" checked /><i></i><span>Загружать следующий трек заранее</span></label>
           <div class="lyrow" title="Последние дослушанные треки Моей волны остаются на диске: назад, история и без интернета — сразу с диска. Старые уходят сами"><span>Моя волна</span><div class="lyseg" id="cacheWave">
             <button class="chip" data-v="0" title="Треки волны не кэшировать">Выкл</button>
             <button class="chip" data-v="10">10</button>

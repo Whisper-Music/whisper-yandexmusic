@@ -33,6 +33,8 @@ const MAX_LIMIT_MB: u64 = 100 * 1024;
 /// Сколько треков «Моей волны» держать по умолчанию и не больше какого числа.
 const DEFAULT_WAVE_MAX: u32 = 20;
 const MAX_WAVE: u32 = 500;
+/// Сколько треков, загруженных заранее и так и не дослушанных, держать (свежие остаются, старые уходят).
+const NEXT_MAX: usize = 4;
 static LOCK: Mutex<()> = Mutex::new(());
 static INFLIGHT: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
@@ -48,6 +50,9 @@ struct Item {
     /// дослушан в «Моей волне»
     #[serde(default)]
     wave: bool,
+    /// загружен заранее — следующий в очереди (src/prefetch.js); дослушали — станет треком плейлиста или волны
+    #[serde(default)]
+    next: bool,
     last: u64,
 }
 
@@ -163,6 +168,19 @@ fn trim_wave(d: &std::path::Path, idx: &mut Index) {
     }
     w.sort_by(|a, b| b.1.cmp(&a.1)); // свежие первыми
     for (id, _) in w.into_iter().skip(idx.wave_max as usize) {
+        remove_item(d, idx, &id);
+    }
+}
+
+/// Загруженные заранее и не дослушанные (пропустили, очередь сменилась): остаются последние NEXT_MAX.
+fn trim_next(d: &std::path::Path, idx: &mut Index) {
+    let mut v: Vec<(String, u64)> =
+        idx.items.iter().filter(|(_, it)| it.next && !it.pop && !it.pl && !it.wave).map(|(id, it)| (id.clone(), it.last)).collect();
+    if v.len() <= NEXT_MAX {
+        return;
+    }
+    v.sort_by(|a, b| b.1.cmp(&a.1));
+    for (id, _) in v.into_iter().skip(NEXT_MAX) {
         remove_item(d, idx, &id);
     }
 }
@@ -389,24 +407,63 @@ pub async fn cache_played(app: AppHandle, id: String, ctx: Option<String>, wave:
             return Ok(false);
         }
     }
-    let res = fetch_into(&app, &d, &id, need).await;
-    if let Ok(mut g) = INFLIGHT.lock() {
-        if let Some(s) = g.as_mut() {
-            s.remove(&id);
-        }
-    }
+    let res = fetch_into(&app, &d, &id, need, false, false).await;
+    inflight_done(&id);
     res
 }
 
-async fn fetch_into(app: &AppHandle, d: &std::path::Path, id: &str, (pop, pl, wave): (bool, bool, bool)) -> Result<bool, String> {
-    let url = net::track_mp3_url(id).await?;
+/// Один и тот же трек не качаем дважды одновременно (дослушан и загрузка заранее). false — уже качается.
+fn inflight_take(id: &str) -> bool {
+    let mut g = INFLIGHT.lock().unwrap_or_else(|e| e.into_inner());
+    g.get_or_insert_with(HashSet::new).insert(id.to_string())
+}
+
+fn inflight_done(id: &str) {
+    if let Ok(mut g) = INFLIGHT.lock() {
+        if let Some(s) = g.as_mut() {
+            s.remove(id);
+        }
+    }
+}
+
+/// Следующий трек очереди — на диск заранее (src/prefetch.js): переключение на него играет с диска, без запросов
+/// к Яндексу. `low` — экономное качество, как у плеера. Кэш выключен — ничего не делает. true — трек в кэше.
+#[tauri::command]
+pub async fn cache_prefetch(app: AppHandle, id: String, low: Option<bool>) -> Result<bool, String> {
+    if !id_ok(&id) {
+        return Ok(false);
+    }
+    let d = dir(&app)?;
+    {
+        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let idx = read(&app);
+        if idx.limit_mb == 0 {
+            return Ok(false);
+        }
+        if idx.items.contains_key(&id) {
+            return Ok(true);
+        }
+    }
+    if crate::download::has_local(&app, &id) {
+        return Ok(false); // скачан — и так играет с диска
+    }
+    if !inflight_take(&id) {
+        return Ok(false);
+    }
+    let res = fetch_into(&app, &d, &id, (false, false, false), true, low == Some(true)).await;
+    inflight_done(&id);
+    res
+}
+
+async fn fetch_into(app: &AppHandle, d: &std::path::Path, id: &str, (pop, pl, wave): (bool, bool, bool), next: bool, low: bool) -> Result<bool, String> {
+    let url = net::track_url_q(id, low).await?;
     let bytes = net::fetch_media(&url).await?;
     if bytes.len() < 1024 {
         return Err("Сервер вернул пустой файл".into());
     }
     let ext = if bytes.starts_with(b"fLaC") { "flac" } else if bytes.len() > 8 && &bytes[4..8] == b"ftyp" { "m4a" } else { "mp3" };
     std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
-    let item = Item { size: bytes.len() as u64, ext: ext.into(), pop, pl, wave, last: now() };
+    let item = Item { size: bytes.len() as u64, ext: ext.into(), pop, pl, wave, next, last: now() };
     let tmp = d.join(format!(".{id}.part"));
     {
         let mut f = std::fs::File::create(&tmp).map_err(|e| e.to_string())?;
@@ -420,9 +477,15 @@ async fn fetch_into(app: &AppHandle, d: &std::path::Path, id: &str, (pop, pl, wa
         let _ = std::fs::remove_file(&tmp);
         return Ok(false);
     }
+    // пока качали заранее, трек уже попал в кэш другим путём (дослушан) — второй файл не нужен
+    if next && idx.items.contains_key(id) {
+        let _ = std::fs::remove_file(&tmp);
+        return Ok(true);
+    }
     std::fs::rename(&tmp, file_of(d, id, &item)).map_err(|e| e.to_string())?;
     idx.items.insert(id.to_string(), item);
     trim_wave(d, &mut idx);
+    trim_next(d, &mut idx);
     evict(d, &mut idx, Some(id));
     write(app, &idx)?;
     Ok(idx.items.contains_key(id))
@@ -433,7 +496,7 @@ mod tests {
     use super::*;
 
     fn it(size: u64, pop: bool, pl: bool, last: u64) -> Item {
-        Item { size, ext: "mp3".into(), pop, pl, wave: false, last }
+        Item { size, ext: "mp3".into(), pop, pl, wave: false, next: false, last }
     }
 
     #[test]
@@ -449,6 +512,19 @@ mod tests {
         // смена плейлиста треки волны не трогает
         switch_playlist(&d, &mut idx, Some("album:2"));
         assert!(idx.items.contains_key("2") && idx.items.contains_key("3"));
+    }
+
+    #[test]
+    fn next_trim() {
+        let d = std::env::temp_dir().join(format!("yd-cache-next-{}", std::process::id()));
+        let mut idx = Index::default();
+        for k in 0..6u64 {
+            idx.items.insert(k.to_string(), Item { next: true, ..it(1, false, false, k) });
+        }
+        idx.items.insert("9".into(), Item { next: true, ..it(1, false, true, 0) }); // дослушан в плейлисте — не в счёт
+        trim_next(&d, &mut idx);
+        assert!(!idx.items.contains_key("0") && !idx.items.contains_key("1"));
+        assert!(["2", "3", "4", "5", "9"].iter().all(|k| idx.items.contains_key(*k)));
     }
 
     #[test]

@@ -44,6 +44,8 @@ mod net;
 #[cfg(desktop)]
 mod notify;
 #[cfg(desktop)]
+mod perf;
+#[cfg(desktop)]
 #[path = "../../src/core/rust/obs.rs"]
 mod obs;
 #[cfg(desktop)]
@@ -133,6 +135,7 @@ macro_rules! commands {
             cache::cache_forget,
             cache::cache_open_dir,
             cache::cache_played,
+            cache::cache_prefetch,
             download::downloaded_ids,
             download::downloaded_tracks,
             download::downloaded_meta,
@@ -236,6 +239,8 @@ macro_rules! commands {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(desktop)]
+    perf::start();
+    #[cfg(desktop)]
     shell::webview_args();
     let builder = tauri::Builder::default();
     #[cfg(desktop)]
@@ -318,7 +323,8 @@ pub fn run() {
         api::wapi_fetch,
         update::update_check,
         update::update_install,
-        winstate::app_ready
+        winstate::app_ready,
+        perf::perf_log
     ]);
     #[cfg(mobile)]
     let builder = builder.invoke_handler(commands![apkupdate::update_check, apkupdate::update_install]);
@@ -358,6 +364,8 @@ pub fn run() {
             });
         })
         .setup(|app| {
+            #[cfg(desktop)]
+            perf::mark("rust:setup");
             secret::init(app.handle());
             deeplink::init(app.handle()); // ссылки whisper://room/КОД (приглашения в комнату) и whisper://track|album|artist/…
             app.manage(bg::Picked::default());
@@ -365,6 +373,8 @@ pub fn run() {
             app.manage(apkupdate::Pending::default());
             #[cfg(desktop)]
             shell::setup(app)?;
+            #[cfg(desktop)]
+            perf::mark("rust:setup_done");
             Ok(())
         })
         .on_window_event(|_window, _event| {

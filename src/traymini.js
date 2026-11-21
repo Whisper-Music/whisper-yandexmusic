@@ -88,7 +88,7 @@
   function glyph(dst, color, k) {
     // свой холст: перекраска (source-in) иначе залила бы и круг «как в стиле» под знаком
     const cv = document.createElement("canvas"); cv.width = cv.height = IC_SIZE;
-    const g = cv.getContext("2d"), s = IC_SIZE * k;
+    const g = cv.getContext("2d", { willReadFrequently: true }), s = IC_SIZE * k;
     g.drawImage(MONO, (IC_SIZE - s) / 2, (IC_SIZE - s) / 2, s, s);
     g.globalCompositeOperation = "source-in";
     g.fillStyle = color; g.fillRect(0, 0, IC_SIZE, IC_SIZE);
@@ -114,8 +114,10 @@
     if (icon === "app") { call("tray_icon", { rgba: null, size: 0 }); return; }
     // картинка знака ещё грузится — нарисуем, когда загрузится
     if (!MONO.complete || !MONO.naturalWidth) { icLast = ""; MONO.onload = () => paintIcon(true); return; }
+    // willReadFrequently — холст в памяти, а не на видеокарте: getImageData с видеокарты при запуске стоил ~300 мс
+    // (весь интерфейс замирал); значку 64×64 видеокарта не нужна
     const cv = document.createElement("canvas"); cv.width = cv.height = IC_SIZE;
-    const g = cv.getContext("2d");
+    const g = cv.getContext("2d", { willReadFrequently: true });
     if (icon === "style") {
       const css = getComputedStyle(document.documentElement);
       const a = css.getPropertyValue("--accent").trim() || "#a66bff", b = css.getPropertyValue("--accent2").trim() || "#e060ff";
@@ -149,5 +151,6 @@
   new MutationObserver(icSoon).observe(document.documentElement, { attributes: true, attributeFilter: ["style", "data-style", "class"] });
   W.on?.("track", icSoon);
   paintIconSeg();
-  if (icon !== "app") setTimeout(() => paintIcon(true), 1200);   // при запуске — когда стиль уже применён
+  // при запуске — когда стиль уже применён и первые кадры окна нарисованы (в свободное время)
+  if (icon !== "app") setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(() => paintIcon(true), { timeout: 3000 }) : paintIcon(true)), 1200);
 })();

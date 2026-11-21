@@ -135,10 +135,52 @@ pub fn restore(w: &WebviewWindow) {
     show_fallback(w);
 }
 
-/// Страница применила сохранённый стиль — можно показывать окно (src/boot.js).
+/// Показать окно при запуске (src/boot.js). Страница зовёт это первым же скриптом, ещё до стилей, с цветом
+/// «шторки» (`bg` — фон стиля прошлого запуска): окно сразу на экране этим цветом, а интерфейс проявляется, когда
+/// стиль применён. Раньше окно показывалось только после этого — и ещё ~0,7 с WebView2 готовил первый кадр
+/// (у скрытого окна он этого не делает). Теперь эта подготовка идёт, пока грузится страница.
+/// Цвет — фон движка до первой отрисовки страницы: без него мелькнул бы белый.
 #[tauri::command]
-pub fn app_ready(window: WebviewWindow) {
+pub fn app_ready(window: WebviewWindow, bg: Option<String>) {
     if window.label() == "main" {
+        crate::perf::mark("rust:app_ready");
+        if let Some(c) = bg.as_deref().and_then(parse_color) {
+            let _ = window.set_background_color(Some(c));
+        }
         show_first(&window);
+    }
+}
+
+/// #rgb, #rrggbb, #rrggbbaa или rgb()/rgba() (так getComputedStyle отдаёт цвета) → цвет без прозрачности.
+fn parse_color(s: &str) -> Option<tauri::window::Color> {
+    let s = s.trim();
+    let rgb = if let Some(h) = s.strip_prefix('#') {
+        let v = |i: usize, n: usize| u8::from_str_radix(h.get(i..i + n)?, 16).ok().map(|x| if n == 1 { x * 17 } else { x });
+        match h.len() {
+            3 | 4 => (v(0, 1)?, v(1, 1)?, v(2, 1)?),
+            6 | 8 => (v(0, 2)?, v(2, 2)?, v(4, 2)?),
+            _ => return None,
+        }
+    } else {
+        let inner = s.strip_prefix("rgba(").or_else(|| s.strip_prefix("rgb("))?.strip_suffix(')')?;
+        let mut it = inner.split([',', ' ', '/']).filter(|x| !x.is_empty()).map(|x| x.parse::<f64>().ok());
+        let mut c = || it.next().flatten().map(|x| x.clamp(0.0, 255.0).round() as u8);
+        (c()?, c()?, c()?)
+    };
+    Some(tauri::window::Color(rgb.0, rgb.1, rgb.2, 255))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_color;
+    #[test]
+    fn colors() {
+        let c = |s| parse_color(s).map(|c| (c.0, c.1, c.2));
+        assert_eq!(c("#0b0618"), Some((11, 6, 24)));
+        assert_eq!(c("#fff"), Some((255, 255, 255)));
+        assert_eq!(c("rgb(14, 11, 9)"), Some((14, 11, 9)));
+        assert_eq!(c("rgba(1,2,3,0.5)"), Some((1, 2, 3)));
+        assert_eq!(c("red"), None);
+        assert_eq!(c("#12"), None);
     }
 }

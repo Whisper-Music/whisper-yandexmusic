@@ -195,12 +195,17 @@ pub(crate) fn show_main(app: &tauri::AppHandle) {
 /// Без него звук идёт из браузерного процесса WebView2 — прямого потомка приложения, и захват его слышит.
 /// msWebOOUI, msPdfOOUI, msSmartScreenProtection — то, что Tauri выключает сам: значение переменной заменяет его
 /// список, поэтому повторяем его целиком. Своё значение переменной (для отладки) не трогаем.
+///
+/// --disable-gpu-rasterization: содержимое страницы рисует процессор, а собирает кадр и двигает слои (анимации
+/// transform/opacity, стекло backdrop-filter, видео) по-прежнему видеокарта. По замерам (perf.js) первый кадр
+/// интерфейса при запуске приходил через ~0,9 с после готовности — столько видеокарта готовилась рисовать
+/// содержимое (от CSS это не зависело). С флагом — через ~0,3 с; загрузка процессора во время игры не выросла.
 pub(crate) fn webview_args() {
     #[cfg(windows)]
     if std::env::var_os("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").is_none() {
         std::env::set_var(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,AudioServiceOutOfProcess",
+            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,AudioServiceOutOfProcess --disable-gpu-rasterization",
         );
     }
 }
