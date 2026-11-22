@@ -148,6 +148,7 @@ const COMMANDS: &[&str] = &[
     "room_link_take",
     "open_link_take",
     "app_ready",
+    "gpu_raster",
     "perf_log",
     "discord_config",
     "discord_status",

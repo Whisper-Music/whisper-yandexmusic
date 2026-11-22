@@ -339,7 +339,7 @@ fn status_of(dir: &Path) -> ToolStatus {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn link_tool_status(app: AppHandle) -> Result<ToolStatus, String> {
     Ok(status_of(&tool_dir(&app)?))
 }
@@ -360,7 +360,7 @@ pub async fn link_tool_install(app: AppHandle) -> Result<ToolStatus, String> {
     r.map_err(|e| format!("Не удалось поставить yt-dlp: {e}"))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn link_tool_remove(app: AppHandle) -> Result<(), String> {
     if BUSY.load(Ordering::SeqCst) {
         return Err("Сейчас идёт скачивание по ссылке — подожди или отмени его".into());

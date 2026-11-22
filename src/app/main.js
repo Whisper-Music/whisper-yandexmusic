@@ -2,7 +2,7 @@ window.perfMark?.("main:start");
 const invoke = async (cmd, args) => {
   const pf = window.perfIpc, t0 = pf ? performance.now() : 0;      // замеры (perf.js): только при WHISPER_PERF
   try { const r = await window.__TAURI__.core.invoke(cmd, args); pf?.(cmd, args, t0, r); return r; }
-  catch (e) { pf?.(cmd, args, t0, null, e); throw e instanceof Error ? e : new Error(String(e)); }
+  catch (e) { pf?.(cmd, args, t0, null, e); window.errLog?.add("команда", `${cmd}: ${e?.message || e}`); throw e instanceof Error ? e : new Error(String(e)); }
 };
 
 const OAUTH_URL =
@@ -5908,8 +5908,8 @@ $("#volBtn").addEventListener("keydown", (e) => {
 });
 $("#volWrap").addEventListener("wheel", (e) => { e.preventDefault(); setVol(volume + (e.deltaY < 0 ? 0.05 : -0.05)); }, { passive: false });
 // Окно громкости открыто (наведение или фокус) — html.vol-open: плеер встаёт над «Очередью», ручка размера панели
-// не ловит курсор (styles.css, layout.css). Раньше это делал html:has(.player .volwrap:hover…) — из-за него каждое
-// изменение внутри плеера пересчитывало стили всего окна (в «Лайках» ~70 мс раз в секунду, на обновлении времени).
+// не ловит курсор (styles.css, layout.css). Не html:has(.player .volwrap:hover…): с ним каждое изменение внутри
+// плеера (время раз в секунду) пересчитывало стили всего окна — в «Лайках» ~70 мс.
 (() => {
   const w = $("#volWrap");
   let hov = false, foc = false;

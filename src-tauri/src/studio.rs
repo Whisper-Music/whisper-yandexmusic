@@ -488,7 +488,7 @@ pub async fn studio_save(
 }
 
 /// Все версии (новые сверху); файл, которого больше нет, из списка выпадает.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn studio_list(app: AppHandle) -> Result<Vec<Item>, String> {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let d = dir(&app)?;
@@ -502,7 +502,7 @@ pub fn studio_list(app: AppHandle) -> Result<Vec<Item>, String> {
 
 /// Локальный лайк и название. liked_at (секунды) — время лайка с другого устройства (libsync.js): версия встаёт
 /// в «Лайках» туда же, где она там; без него — момент нажатия.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn studio_update(app: AppHandle, id: String, liked: Option<bool>, title: Option<String>, liked_at: Option<u64>) -> Result<Item, String> {
     if !id_ok(&id) {
         return Err("Некорректный номер версии".into());
@@ -536,7 +536,7 @@ pub fn studio_update(app: AppHandle, id: String, liked: Option<bool>, title: Opt
     Ok(out)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn studio_delete(app: AppHandle, id: String) -> Result<(), String> {
     if !id_ok(&id) {
         return Err("Некорректный номер версии".into());

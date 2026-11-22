@@ -200,14 +200,41 @@ pub(crate) fn show_main(app: &tauri::AppHandle) {
 /// transform/opacity, стекло backdrop-filter, видео) по-прежнему видеокарта. По замерам (perf.js) первый кадр
 /// интерфейса при запуске приходил через ~0,9 с после готовности — столько видеокарта готовилась рисовать
 /// содержимое (от CSS это не зависело). С флагом — через ~0,3 с; загрузка процессора во время игры не выросла.
+/// Но темы с параллаксом (большие слои двигаются за курсором) с ним дёргаются: процессор не успевает дорисовывать
+/// слои. Такая тема оставляет метку (gpu_raster) — и со следующего запуска флага нет.
 pub(crate) fn webview_args() {
     #[cfg(windows)]
     if std::env::var_os("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").is_none() {
-        std::env::set_var(
-            "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,AudioServiceOutOfProcess --disable-gpu-rasterization",
-        );
+        let gpu = gpu_mark().is_some_and(|f| f.exists());
+        CPU_RASTER.store(!gpu, std::sync::atomic::Ordering::Relaxed);
+        let base = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,AudioServiceOutOfProcess";
+        std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", if gpu { base.to_string() } else { format!("{base} --disable-gpu-rasterization") });
     }
+}
+
+/// Запущено с --disable-gpu-rasterization.
+static CPU_RASTER: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Метка «нужна видеокарта». Путь считаем сами: webview_args работает до Builder, AppHandle ещё нет.
+#[cfg(windows)]
+fn gpu_mark() -> Option<std::path::PathBuf> {
+    Some(std::path::PathBuf::from(std::env::var_os("APPDATA")?).join("ya").join("gpu-raster"))
+}
+
+/// Тема двигает слои за курсором (themefx.js) — со следующего запуска страницу рисует видеокарта.
+/// true — сейчас рисует процессор, а теме нужна видеокарта: плавно станет после перезапуска.
+#[tauri::command(async)]
+pub fn gpu_raster(on: bool) -> bool {
+    #[cfg(windows)]
+    if let Some(f) = gpu_mark() {
+        if on && !f.exists() {
+            let _ = f.parent().map(std::fs::create_dir_all);
+            let _ = std::fs::write(&f, b"1");
+        } else if !on {
+            let _ = std::fs::remove_file(&f);
+        }
+    }
+    on && CPU_RASTER.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Плагины только для компьютера. Single-instance должен быть первым плагином: повторный запуск (ярлык,

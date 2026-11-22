@@ -231,7 +231,7 @@ fn read_req(s: &mut TcpStream) -> Option<Req> {
     Some(Req { method, path: pct_decode(&path), query, headers, body })
 }
 
-const CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self' blob:; \
+const CSP: &str = "default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self' blob:; \
 img-src 'self' data: blob: https://*.yandex.net https://*.yandex.ru https://cdn.discordapp.com/avatars/; \
 media-src 'self' blob: https://*.yandex.net; connect-src 'self'; font-src 'self' data: blob:; \
 object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
@@ -375,7 +375,7 @@ fn static_file(s: &mut TcpStream, app: &AppHandle, path: &str) {
     };
     if p == "/index.html" {
         // шим — самым первым скриптом, раньше boot.js: тот уже обращается к window.__TAURI__
-        let html = String::from_utf8_lossy(&body).replacen("<head>", "<head>\n  <script src=\"/webshim.js\"></script>", 1);
+        let html = String::from_utf8_lossy(&body).replacen("<head>", "<head>\n  <script src=\"/web/webshim.js\"></script>", 1);
         body = html.into_bytes();
     }
     send(s, "200 OK", mime_of(p), &[], &body);

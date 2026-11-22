@@ -355,9 +355,24 @@
 
   // ---------- применить к текущему стилю ----------
   // applyCfg (а с ним и это) зовут часто — пересобираем, только когда что-то реально поменялось
+  // Параллаксу нужна видеокарта и для рисования слоёв (shell.rs → gpu_raster), а включить её можно только при запуске.
+  // Отправляем, когда тема устоялась: при запуске первый вызов идёт ещё до разбора темы (pointer = false).
+  let gpuSent = null, gpuTold = false, gpuT = 0;
+  function gpu(on) {
+    clearTimeout(gpuT);
+    gpuT = setTimeout(() => {
+      if (on === gpuSent) return;
+      gpuSent = on;
+      invoke("gpu_raster", { on }).then((later) => {
+        if (later && !gpuTold) { gpuTold = true; showToast("Перезапусти приложение — параллакс станет плавным", 5000); }
+      }).catch(() => {});
+    }, 2000);
+  }
+
   window.themeFxApply = () => {
     const h = typeof hook === "function" ? (k) => hook(k) : () => null;
     const next = { id: cfg.style, events: !!h("events"), pointer: !!h("pointer"), layer: h("layer") || null, particles: h("particles") || [] };
+    gpu(next.pointer);
     if (next.id !== st.id) imgs.clear();                 // картинки частиц — у каждой темы свои
     if (next.id !== st.id || next.particles !== st.particles) particles(next.particles, next.id);
     if (next.id !== st.id || JSON.stringify(next.layer) !== JSON.stringify(st.layer)) layer(next.layer);

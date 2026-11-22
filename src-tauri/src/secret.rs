@@ -67,7 +67,7 @@ pub struct Backend {
     wa: &'static str,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn secret_backend() -> Backend {
     Backend { ym: imp::backend(YM), wa: imp::backend(WA) }
 }

@@ -145,7 +145,7 @@ fn kind_ok(kind: &str) -> Result<&'static str, String> {
 }
 
 /// Список автокопий вида `kind` (settings | downloaded | downloads), свежие первыми.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn snap_list(app: AppHandle, kind: String) -> Result<Vec<SnapInfo>, String> {
     let kind = kind_ok(&kind)?;
     let dir = snap_dir(&app)?;
@@ -161,7 +161,7 @@ pub fn snap_list(app: AppHandle, kind: String) -> Result<Vec<SnapInfo>, String> 
 
 /// Автокопия настроек страницы: JSON-объект от backup.js. `force` — не ждать паузы между копиями
 /// (перед восстановлением из файла: чтобы можно было откатиться).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn snap_settings_save(app: AppHandle, json: String, force: bool) -> Result<bool, String> {
     if json.len() as u64 > SNAP_MAX {
         return Err("Настройки слишком большие для автокопии".into());
@@ -174,7 +174,7 @@ pub fn snap_settings_save(app: AppHandle, json: String, force: bool) -> Result<b
 }
 
 /// Текст автокопии настроек страницы.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn snap_settings_read(app: AppHandle, name: String) -> Result<String, String> {
     let b = snap_read_in(&snap_dir(&app)?, "settings", &name)?;
     String::from_utf8(b).map_err(|_| "Автокопия повреждена".into())

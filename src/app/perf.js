@@ -123,7 +123,7 @@
     if (on === null) {
       on = !!r;
       if (r?.css && CSS_EXP[r.css]) { expCss(CSS_EXP[r.css]); put("css", r.css); }
-      if (r?.auto) setTimeout(() => (r.auto === "2" ? quick() : r.auto === "3" ? paintExp() : auto()), 6000);
+      if (r?.auto) setTimeout(() => (r.auto === "2" ? quick() : r.auto === "3" ? paintExp() : r.auto === "4" ? vizExp() : auto()), 6000);
     }
     if (!on) {
       // замеры не включены — убираем всё, что поставили
@@ -188,6 +188,7 @@
       }
     } catch (e) { put("auto:error", String(e?.message || e)); }
     try { if (audio && !audio.paused) audio.pause(); } catch {}
+    try { restoreViz?.(); } catch {}
     if (v0 !== null) setVol(v0);
     put("auto:done");
     flush();
@@ -228,6 +229,7 @@
       }
     } catch (e) { put("auto:error", String(e?.message || e)); }
     try { if (audio && !audio.paused) audio.pause(); } catch {}
+    try { restoreViz?.(); } catch {}
     if (v0 !== null) setVol(v0);
     put("auto:done");
     flush();
@@ -301,6 +303,44 @@
       expCss("");
     } catch (e) { put("auto:error", String(e?.message || e)); }
     try { if (audio && !audio.paused) audio.pause(); } catch {}
+    try { restoreViz?.(); } catch {}
+    if (v0 !== null) setVol(v0);
+    put("auto:done");
+    flush();
+  }
+
+  // WHISPER_PERF_AUTO=4: сколько основного потока занимает визуализатор на «Моей волне», пока играет трек
+  async function vizExp() {
+    put("auto:begin", "визуализатор");
+    let restoreViz = null;
+    const v0 = typeof volume === "number" ? volume : null;
+    try {
+      let n = 0, ms = 0, worst = 0;
+      if (typeof vizFrame === "function") {
+        const o = vizFrame;
+        // глобальная функция main.js: requestAnimationFrame(vizFrame) внутри берёт её по имени — заменяем обёрткой
+        vizFrame = function (ts) { const t0 = performance.now(); try { return o(ts); } finally { const d = performance.now() - t0; n++; ms += d; if (d > worst) worst = d; } };
+      }
+      tap("#wave", "волна"); await wait(3000);
+      if (v0 !== null) setVol(0);
+      // визуализатор на время замера включаем без saveCfg — выбор пользователя не трогаем
+      const was = { viz: cfg.viz, st: cfg.vizStyle };
+      restoreViz = () => { cfg.viz = was.viz; cfg.vizStyle = was.st; applyViz(); };
+      cfg.viz = true; applyViz();
+      const pool = (typeof likes !== "undefined" ? likes.tracks || [] : []).filter((t) => got.has(String(t.id))).slice(0, 3);
+      put("auto:viz", `визуализатор был ${was.viz ? "включён" : "выключен"}, треков с диска ${pool.length}`);
+      if (pool.length) window.Whisper.queue.play(pool, 0); else $("#waveBtn").click();
+      await wait(6000);
+      for (const st of ["bars", "circle"]) {
+        cfg.vizStyle = st; await wait(1000);
+        const n0 = n, m0 = ms, l0 = lfN, s0 = lfSum, sec = 10; worst = 0;
+        await wait(sec * 1000);
+        const k = n - n0;
+        put("exp", `${st}: кадров ${k} (${(k / sec).toFixed(0)}/с), в среднем ${(k ? (ms - m0) / k : 0).toFixed(2)} мс, худший ${worst.toFixed(1)} мс, всего ${Math.round(ms - m0)} мс за ${sec} с · долгих кадров ${lfN - l0}, ${Math.round(lfSum - s0)} мс · играет ${audio && !audio.paused} · audioViz ${typeof audioViz !== "undefined" ? audioViz : "?"}`);
+      }
+    } catch (e) { put("auto:error", String(e?.message || e)); }
+    try { if (audio && !audio.paused) audio.pause(); } catch {}
+    try { restoreViz?.(); } catch {}
     if (v0 !== null) setVol(v0);
     put("auto:done");
     flush();

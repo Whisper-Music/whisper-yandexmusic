@@ -457,7 +457,7 @@ fn save_index(p: &Path, index: &Index) -> Result<(), String> {
 
 /// Восстановить список скачанных из автокопии по имени (настройки → «Резервные копии»).
 /// Текущий список перед этим сам становится автокопией — откат можно отменить. Возвращает число треков.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn dl_index_restore(app: AppHandle, name: String) -> Result<usize, String> {
     let _guard = INDEX_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let p = index_path(&app)?;
@@ -653,7 +653,7 @@ pub fn has_local(app: &AppHandle, id: &str) -> bool {
     read_index(app).contains_key(id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn downloaded_ids(app: AppHandle) -> Vec<String> {
     live_index(&app).into_keys().collect()
 }
@@ -667,7 +667,7 @@ pub struct DlItem {
 }
 
 /// Скачанные треки с описанием — из них собирается список «Лайков» без интернета.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn downloaded_tracks(app: AppHandle) -> Vec<DlItem> {
     live_index(&app)
         .into_iter()
@@ -690,7 +690,7 @@ pub struct MetaItem {
 }
 
 /// Дописать описание трекам, скачанным раньше (когда описание ещё не сохранялось).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn downloaded_meta(app: AppHandle, items: Vec<MetaItem>) -> Result<(), String> {
     let _guard = INDEX_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut index = read_index(&app);
@@ -714,7 +714,7 @@ pub fn downloaded_meta(app: AppHandle, items: Vec<MetaItem>) -> Result<(), Strin
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn download_dir_get(app: AppHandle) -> Result<DirInfo, String> {
     info(&app)
 }
@@ -762,7 +762,7 @@ async fn download_dir_pick_desktop(app: AppHandle) -> Result<Option<DirInfo>, St
     info(&app).map(Some)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn download_dir_reset(app: AppHandle) -> Result<DirInfo, String> {
     let mut cfg = read_cfg(&app);
     cfg.retire_current();
@@ -770,7 +770,7 @@ pub fn download_dir_reset(app: AppHandle) -> Result<DirInfo, String> {
     info(&app)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn download_dir_open(app: AppHandle) -> Result<(), String> {
     let (dir, _) = current_dir(&app)?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("Не удалось создать папку: {e}"))?;
@@ -861,7 +861,7 @@ pub async fn download_track(
 /// «Удалить с диска» в меню трека: файл стирается, запись — из списка скачанных.
 /// Удаляется только файл из своего индекса, только звуковой и только из папок загрузок: путь интерфейс не передаёт.
 /// Файл вне папок загрузок (или уже исчезнувший) не трогаем — просто забываем запись.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn download_delete(app: AppHandle, id: String) -> Result<(), String> {
     if !id_ok(&id) {
         return Err("Некорректный номер трека".into());

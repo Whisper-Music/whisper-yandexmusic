@@ -364,11 +364,56 @@
     for (const [k, u] of assetUrls) if (k.startsWith(id + "\n")) { if (u) URL.revokeObjectURL(u); assetUrls.delete(k); }
   }
 
+  // Разбор темы — в отдельном потоке (wmtworker.js): распаковка, JSON и base64 старых тем стоили десятки мс на тему,
+  // при запуске — прямо перед показом интерфейса. Воркер отдаёт данные без методов — revive возвращает их.
+  // Воркер не запустился или молчит 10 с — разбираем здесь же, как раньше: битой тема от этого не считается.
+  let wk = null, wkSeq = 0;
+  const wkWait = new Map();
+  function wkFail() { const all = [...wkWait.values()]; wkWait.clear(); wk = false; for (const w of all) { clearTimeout(w.timer); w.fallback(); } }
+  function worker() {
+    if (wk !== null) return wk;
+    try {
+      wk = new Worker("look/wmtworker.js");
+      wk.onmessage = ({ data: d }) => {
+        const w = wkWait.get(d.id);
+        if (!w) return;
+        wkWait.delete(d.id); clearTimeout(w.timer);
+        if (!d.err) return w.ok(revive(d.th));
+        const e = new Error(d.err);
+        if (d.wmt) { e.name = "WmtError"; e.line = d.line; }
+        w.no(e);
+      };
+      wk.onerror = wkFail;
+    } catch { wk = false; }
+    return wk;
+  }
+  function revive(d) {
+    const assets = new Map(d.assets), sections = d.sections;
+    const th = {
+      version: d.version, preamble: d.preamble, manifest: d.manifest, tokens: d.tokens, sections, assets, archive: d.archive,
+      css: (app) => sections.find((s) => s.type === "css" && s.name === app)?.text ?? null,
+      settings: (app) => sections.find((s) => s.type === "settings" && s.name === app)?.json || {},
+      asset: (ref) => { const n = /^asset:(.+)$/.exec(String(ref || "")); return n ? assets.get(n[1]) || null : null; },
+    };
+    th.background = d.bg ? assets.get(d.bg) || null : null;
+    return th;
+  }
+  function openThemeBg(input) {
+    const w = worker();
+    if (!w) return WMT.open(input);
+    return new Promise((ok, no) => {
+      const id = ++wkSeq;
+      const fallback = () => { wkWait.delete(id); WMT.open(input).then(ok, no); };
+      wkWait.set(id, { ok, no, fallback, timer: setTimeout(fallback, 10000) });
+      try { w.postMessage({ id, input }); } catch { clearTimeout(wkWait.get(id)?.timer); fallback(); }
+    });
+  }
+
   // Сохранённая тема: текст (строка) или архив (Blob) — как её загрузили.
   async function loadStored(id) {
     const v = await IDB.get(KEY(id));
     if (!v) return null;
-    return WMT.open(v instanceof Blob ? new Uint8Array(await v.arrayBuffer()) : v);
+    return openThemeBg(v instanceof Blob ? new Uint8Array(await v.arrayBuffer()) : v);
   }
 
   // Фон из темы: в архиве — файл background.<расширение>. Нет фона (например, загрузили только текст темы) —

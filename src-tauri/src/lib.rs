@@ -267,6 +267,7 @@ pub fn run() {
         shell::tray_playing,
         shell::tray_lang,
         shell::tray_icon,
+        shell::gpu_raster,
         // браузерная версия (webmode.rs)
         webmode::web_open,
         webmode::web_finish,

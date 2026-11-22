@@ -58,7 +58,7 @@
 :root[data-anim="off"] .sblstartcb, :root[data-anim="off"] .sblstartcb::after { transition: none; }
 
 /* режим перестановки в самой боковой панели (panels.js → sideEdit) */
-/* двигаются только кнопки верхней группы (.sideedit-it); «Профиль» и «Свернуть» — как обычно, только неактивные */
+/* двигаются только кнопки верхней группы (.sideedit-it); «Профиль» — как обычно, только неактивный */
 html.side-edit .app > .side > .sideedit-it {
   outline: 1.5px dashed color-mix(in srgb, var(--accent) 65%, transparent); outline-offset: 2px; cursor: grab;
 }

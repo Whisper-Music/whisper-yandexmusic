@@ -65,7 +65,7 @@ pub fn perf_log(app: tauri::AppHandle, text: String) -> serde_json::Value {
         let _ = writeln!(f, "{t}\tjs\t{}", line.chars().take(2000).collect::<String>());
     }
     // "1" — весь сценарий, "2" — короткий опыт (perf.js); нет переменной — null
-    let auto = std::env::var("WHISPER_PERF_AUTO").ok().filter(|v| matches!(v.as_str(), "1" | "2" | "3"));
+    let auto = std::env::var("WHISPER_PERF_AUTO").ok().filter(|v| matches!(v.as_str(), "1" | "2" | "3" | "4"));
     // WHISPER_PERF_CSS — имя опыта с CSS при запуске (список вариантов — perf.js, CSS_EXP)
     let css = std::env::var("WHISPER_PERF_CSS").ok().filter(|v| v.len() <= 20 && v.bytes().all(|b| b.is_ascii_lowercase()));
     serde_json::json!({ "auto": auto, "css": css })

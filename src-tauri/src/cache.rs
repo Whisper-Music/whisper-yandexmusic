@@ -1,12 +1,17 @@
 // Кэш приложения: нескачанные треки, которые не нужно каждый раз тянуть с Яндекса (src/cache.js).
 //
-//   * «популярные» — трек дослушали POP_PLAYS раз: ложится в кэш и живёт дольше всех (удаляется последним);
+//   * «популярные» — трек дослушали POP_PLAYS раз: ложится в кэш и живёт дольше всех. У каждого трека есть
+//     популярность (score): +1 за прослушивание и затухание вдвое за каждые HALF_PLAYS прослушиваний ДРУГИХ треков.
+//     Часы не идут — затухание считается по прослушиваниям, поэтому неделя без приложения ничего не меняет,
+//     а трек, который давно не включали, пока слушаешь другое, сползает к концу очереди;
 //   * «текущий плейлист» — уже проигранные треки того, что сейчас слушается (альбом, плейлист, лайки…):
 //     при переключении на другой плейлист такие треки (если они не популярные) удаляются;
 //   * «Моя волна» — дослушанные треки волны: последние wave_max (по умолчанию 20), старые уходят сами;
 //     смена плейлиста их не трогает (волна — не плейлист);
-//   * лимит размера: переполнилось — сначала уходят треки плейлиста (старые первыми), потом популярные
-//     с наименьшим числом прослушиваний. Лимит 0 — кэш выключен (и очищен).
+//   * лимит размера: популярным принадлежит POP_SHARE % кэша, остальное — текущему плейлисту и волне.
+//     Свободное место популярные занимают, но новый трек плейлиста или волны вытесняет их обратно до своей доли
+//     (наименее популярные первыми). Свои — плейлист и волна — вытесняют друг друга, давние первыми.
+//     Лимит 0 — кэш выключен (и очищен).
 //
 // Где лежит: системная папка кэша приложения (app_cache_dir) / tracks —
 //   Windows: %LOCALAPPDATA%\<identifier>\tracks, Linux: $XDG_CACHE_HOME/<identifier>/tracks (обычно ~/.cache/…).
@@ -26,6 +31,10 @@ const INDEX_FILE: &str = "index.json";
 const INDEX_MAX_BYTES: u64 = 8 * 1024 * 1024;
 /// Сколько раз дослушать трек, чтобы он стал «популярным».
 const POP_PLAYS: u32 = 3;
+/// Популярность падает вдвое за столько прослушиваний других треков (~день-два, если слушать много).
+const HALF_PLAYS: f64 = 400.0;
+/// Доля кэша (%), которую популярные держат и при нехватке места; остальное — плейлисту и волне.
+const POP_SHARE: u64 = 70;
 /// Сколько треков помнить в счётчике прослушиваний (самые давние забываются).
 const PLAYS_MAX: usize = 5000;
 const DEFAULT_LIMIT_MB: u64 = 1024;
@@ -60,6 +69,11 @@ struct Item {
 struct Plays {
     n: u32,
     last: u64,
+    /// популярность на момент прослушивания номер t (Index.tick); 0 — старый индекс, берётся n
+    #[serde(default)]
+    s: f64,
+    #[serde(default)]
+    t: u64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -78,6 +92,9 @@ struct Index {
     items: HashMap<String, Item>,
     #[serde(default)]
     plays: HashMap<String, Plays>,
+    /// сколько треков дослушано всего — «часы» затухания популярности
+    #[serde(default)]
+    tick: u64,
 }
 
 fn yes() -> bool {
@@ -90,7 +107,7 @@ fn wave_default() -> u32 {
 
 impl Default for Index {
     fn default() -> Self {
-        Self { limit_mb: DEFAULT_LIMIT_MB, playlist: true, current: None, wave_max: DEFAULT_WAVE_MAX, items: HashMap::new(), plays: HashMap::new() }
+        Self { limit_mb: DEFAULT_LIMIT_MB, playlist: true, current: None, wave_max: DEFAULT_WAVE_MAX, items: HashMap::new(), plays: HashMap::new(), tick: 0 }
     }
 }
 
@@ -135,27 +152,45 @@ fn remove_item(d: &std::path::Path, idx: &mut Index, id: &str) {
     }
 }
 
-/// Освободить место до лимита: сначала треки плейлиста (не популярные), старые первыми; потом популярные —
-/// реже слушаемые первыми. `keep` — только что добавленный трек, его не трогаем.
+/// Популярность трека сейчас: с прослушивания номер t прошло tick − t прослушиваний — столько раз и затухла.
+fn score(idx: &Index, id: &str) -> f64 {
+    idx.plays.get(id).map_or(0.0, |p| {
+        let base = if p.s > 0.0 { p.s } else { p.n as f64 };
+        base * 0.5f64.powf(idx.tick.saturating_sub(p.t) as f64 / HALF_PLAYS)
+    })
+}
+
+/// Освободить место до лимита. Популярные сверх своей доли уходят первыми (наименее популярные раньше);
+/// в своей доле их не трогают, пока есть что убрать из плейлиста и волны (загруженные заранее, потом давние).
+/// `keep` — только что добавленный трек, его не трогаем.
 fn evict(d: &std::path::Path, idx: &mut Index, keep: Option<&str>) {
     let limit = idx.limit_mb.saturating_mul(1024 * 1024);
     let mut total: u64 = idx.items.values().map(|i| i.size).sum();
     if total <= limit {
         return;
     }
-    let mut order: Vec<(String, bool, u32, u64, u64)> = idx
-        .items
-        .iter()
-        .filter(|(id, _)| Some(id.as_str()) != keep)
-        .map(|(id, it)| (id.clone(), it.pop, idx.plays.get(id).map_or(0, |p| p.n), it.last, it.size))
-        .collect();
-    // (не популярные раньше популярных, меньше прослушиваний раньше, давнее раньше)
-    order.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).then(a.3.cmp(&b.3)));
-    for (id, _, _, _, size) in order {
-        if total <= limit {
+    let cap = limit * POP_SHARE / 100;
+    let mut pop_total: u64 = idx.items.values().filter(|i| i.pop).map(|i| i.size).sum();
+    let mut pops: Vec<(String, f64, u64)> =
+        idx.items.iter().filter(|(id, it)| it.pop && Some(id.as_str()) != keep).map(|(id, it)| (id.clone(), score(idx, id), it.size)).collect();
+    pops.sort_by(|a, b| a.1.total_cmp(&b.1));
+    let mut rest: Vec<(String, bool, u64, u64)> =
+        idx.items.iter().filter(|(id, it)| !it.pop && Some(id.as_str()) != keep).map(|(id, it)| (id.clone(), it.next, it.last, it.size)).collect();
+    rest.sort_by(|a, b| b.1.cmp(&a.1).then(a.2.cmp(&b.2)));
+    let (mut pi, mut ri) = (0, 0);
+    while total > limit {
+        let size = if pi < pops.len() && (pop_total > cap || ri >= rest.len()) {
+            pi += 1;
+            pop_total = pop_total.saturating_sub(pops[pi - 1].2);
+            remove_item(d, idx, &pops[pi - 1].0);
+            pops[pi - 1].2
+        } else if ri < rest.len() {
+            ri += 1;
+            remove_item(d, idx, &rest[ri - 1].0);
+            rest[ri - 1].3
+        } else {
             break;
-        }
-        remove_item(d, idx, &id);
+        };
         total = total.saturating_sub(size);
     }
 }
@@ -248,7 +283,7 @@ fn kind(it: &Item) -> u8 {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cache_info(app: AppHandle) -> Result<CacheInfo, String> {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let idx = read(&app);
@@ -271,7 +306,7 @@ pub fn cache_info(app: AppHandle) -> Result<CacheInfo, String> {
 }
 
 /// Номера треков в кэше — интерфейс по ним решает, играть ли трек с диска.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cache_ids(app: AppHandle) -> Vec<String> {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     read(&app).items.into_keys().collect()
@@ -279,7 +314,7 @@ pub fn cache_ids(app: AppHandle) -> Vec<String> {
 
 /// Настройки: лимит (МБ, 0 — кэш выключен), «сохранять текущий плейлист» и сколько треков «Моей волны» хранить
 /// (0 — волну не кэшировать). Возвращает номера, что остались.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cache_config(app: AppHandle, limit_mb: Option<u64>, playlist: Option<bool>, wave_max: Option<u32>) -> Result<Vec<String>, String> {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let d = dir(&app)?;
@@ -310,7 +345,7 @@ pub fn cache_config(app: AppHandle, limit_mb: Option<u64>, playlist: Option<bool
 }
 
 /// Очистить кэш (счётчик прослушиваний остаётся — популярные снова наберутся сами).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cache_clear(app: AppHandle) -> Result<(), String> {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let d = dir(&app)?;
@@ -334,7 +369,7 @@ pub fn cache_clear(app: AppHandle) -> Result<(), String> {
 }
 
 /// Трек из кэша не открылся (повреждён) — забыть его.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cache_forget(app: AppHandle, id: String) -> Result<(), String> {
     if !id_ok(&id) {
         return Ok(());
@@ -346,7 +381,7 @@ pub fn cache_forget(app: AppHandle, id: String) -> Result<(), String> {
     write(&app, &idx)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cache_open_dir(app: AppHandle) -> Result<(), String> {
     let d = dir(&app)?;
     std::fs::create_dir_all(&d).map_err(|e| e.to_string())?;
@@ -367,9 +402,13 @@ pub async fn cache_played(app: AppHandle, id: String, ctx: Option<String>, wave:
         let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let mut idx = read(&app);
         let t = now();
+        idx.tick += 1;
+        let (tick, s) = (idx.tick, score(&idx, &id) + 1.0);
         let p = idx.plays.entry(id.clone()).or_default();
         p.n = p.n.saturating_add(1);
         p.last = t;
+        p.s = s;
+        p.t = tick;
         let pop = p.n >= POP_PLAYS;
         if idx.plays.len() > PLAYS_MAX {
             let mut v: Vec<(String, u64)> = idx.plays.iter().map(|(k, p)| (k.clone(), p.last)).collect();
@@ -543,10 +582,41 @@ mod tests {
         idx.items.insert("1".into(), it(mb, true, false, 10)); // популярный, давний
         idx.items.insert("2".into(), it(mb, false, true, 50)); // плейлист, свежий
         idx.items.insert("3".into(), it(mb, false, true, 20)); // плейлист, старый
-        idx.plays.insert("1".into(), Plays { n: 5, last: 10 });
+        idx.plays.insert("1".into(), Plays { n: 5, last: 10, ..Default::default() });
         evict(&d, &mut idx, None);
         // сверх лимита — 1 МБ: уходит старый трек плейлиста, популярный остаётся
         assert!(idx.items.contains_key("1") && idx.items.contains_key("2") && !idx.items.contains_key("3"));
+    }
+
+    #[test]
+    fn pop_share() {
+        let d = std::env::temp_dir().join(format!("yd-cache-share-{}", std::process::id()));
+        let mb = 1024 * 1024;
+        // 10 МБ: популярные заняли 9 (взяли свободное), пришёл трек плейлиста — популярные уходят до 7, наименее популярные первыми
+        let mut idx = Index { limit_mb: 10, tick: 100, ..Default::default() };
+        for k in 0..9u64 {
+            idx.items.insert(k.to_string(), it(mb, true, false, 0));
+            idx.plays.insert(k.to_string(), Plays { n: 3, s: 10.0 - k as f64, t: 100, ..Default::default() });
+        }
+        idx.items.insert("p".into(), it(3 * mb, false, true, 0));
+        evict(&d, &mut idx, Some("p"));
+        assert!(idx.items.contains_key("p") && !idx.items.contains_key("8") && !idx.items.contains_key("7"));
+        assert_eq!(idx.items.values().filter(|i| i.pop).count(), 7);
+        // популярные в своей доле (6 + новый = 7): новый популярный вытесняет трек плейлиста, а не другой популярный
+        idx.items.insert("q".into(), it(mb, true, false, 0));
+        idx.items.remove("0");
+        idx.items.insert("r".into(), it(mb, false, true, 0));
+        evict(&d, &mut idx, Some("q"));
+        assert!(idx.items.contains_key("q") && idx.items.contains_key("1"));
+    }
+
+    #[test]
+    fn score_decay() {
+        let mut idx = Index { tick: 5000, ..Default::default() };
+        idx.plays.insert("old".into(), Plays { n: 10, s: 10.0, t: 5000 - 4 * HALF_PLAYS as u64, ..Default::default() }); // 10 → 0,625
+        idx.plays.insert("new".into(), Plays { n: 3, s: 3.0, t: 4990, ..Default::default() });
+        idx.plays.insert("legacy".into(), Plays { n: 4, ..Default::default() }); // старый индекс: s = n, t = 0
+        assert!(score(&idx, "old") < 1.0 && score(&idx, "new") > 2.9 && score(&idx, "legacy") > 0.0);
     }
 
     #[test]

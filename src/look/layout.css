@@ -243,8 +243,8 @@ html:root[data-ly-sb="mini"] .side .nav:hover:not(.active) { transform: none; }
 .side > #studioBtn { --ic: var(--ly-i-studio); }
 .side > #friendsBtn { --ic: var(--ly-i-friends); }
 .side > #profile { --ic: var(--ly-i-user); }
-/* под «Профилем» — небольшой пустой отступ (layout.js; кнопки «Свернуть» здесь больше нет):
-   в обычном виде, в свёрнутой панели и в мини-виде нижняя кнопка не прилипает к краю */
+/* под «Профилем» — небольшой пустой отступ (layout.js): в обычном виде, в свёрнутой панели и в мини-виде
+   нижняя кнопка не прилипает к краю */
 .side > .sidegap { flex: none; height: 10px; pointer-events: none; }
 html:root[data-ly-ui="super"] .side > .sidegap { height: 6px; }
 

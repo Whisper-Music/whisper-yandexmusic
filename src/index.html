@@ -7,60 +7,62 @@
   <!-- значок вкладки в браузерной версии (окну приложения не нужен) -->
   <link rel="icon" type="image/png" href="favicon.png" />
   <!-- без defer, первым: стиль прошлого запуска и «шторка» до первой отрисовки (boot.js) -->
-  <script src="boot.js"></script>
+  <script src="app/boot.js"></script>
   <!-- без defer, сразу после boot.js: телефон — класс html.mobile до первой отрисовки (mobile.js, mobile.css) -->
-  <script src="mobile.js"></script>
-  <script src="lsguard.js"></script>
+  <script src="mobile/mobile.js"></script>
+  <script src="app/lsguard.js"></script>
+  <!-- журнал ошибок (Данные → «Журнал ошибок»): без defer — ловит ошибки и ранних скриптов -->
+  <script src="settings/errlog.js"></script>
   <!-- замеры скорости (perf.js): работают, только если приложение запущено с WHISPER_PERF=<файл> -->
-  <script src="perf.js"></script>
+  <script src="app/perf.js"></script>
   <!-- язык интерфейса: словарь и переводчик, тоже без defer — успеть до первой отрисовки -->
   <script src="i18n/en.js"></script>
-  <script src="i18n.js"></script>
-  <link rel="stylesheet" href="styles.css" />
+  <script src="i18n/i18n.js"></script>
+  <link rel="stylesheet" href="look/styles.css" />
   <!-- оформление «Слушать вместе» (core/together.js) — сразу после общего: перекрывает его правила плеера и меню -->
   <link rel="stylesheet" href="core/together.css" />
   <!-- ядро Whisper (общее для всех приложений Whisper) — раньше main.js; yandex.js — сразу после него и до theme.js -->
   <script src="core/whisper-core.js" defer></script>
-  <script src="imgguard.js" defer></script>
-  <script src="main.js" defer></script>
-  <script src="errinfo.js" defer></script>
+  <script src="app/imgguard.js" defer></script>
+  <script src="app/main.js" defer></script>
+  <script src="settings/errinfo.js" defer></script>
   <!-- «распад на пиксели» строки, убранной из лайков (main.js → toggleLike) -->
-  <script src="dust.js" defer></script>
+  <script src="look/dust.js" defer></script>
   <!-- настройки: общее окно «Подробнее» (openDetails) и страница — поиск, Ctrl+F, вкладки сверху/слева -->
-  <link rel="stylesheet" href="details.css" />
-  <script src="details.js" defer></script>
-  <link rel="stylesheet" href="setpage.css" />
-  <script src="setpage.js" defer></script>
-  <script src="yandex.js" defer></script>
+  <link rel="stylesheet" href="settings/details.css" />
+  <script src="settings/details.js" defer></script>
+  <link rel="stylesheet" href="settings/setpage.css" />
+  <script src="settings/setpage.js" defer></script>
+  <script src="app/yandex.js" defer></script>
   <!-- Whisper Archive — общий модуль ядра Whisper -->
   <link rel="stylesheet" href="core/archive.css" />
   <script src="core/archive.js" defer></script>
   <!-- очередь и история — общий модуль ядра Whisper -->
   <link rel="stylesheet" href="core/queue.css" />
   <script src="core/queue.js" defer></script>
-  <link rel="stylesheet" href="theme.css" />
-  <link rel="stylesheet" href="themelib.css" />
+  <link rel="stylesheet" href="look/theme.css" />
+  <link rel="stylesheet" href="look/themelib.css" />
   <!-- движок тем ядра: формат .wmt и привязка CSS темы (чистые модули, без зависимостей) — до theme.js и themelib.js -->
   <script src="core/wmt.js" defer></script>
   <script src="core/theme-css.js" defer></script>
-  <script src="theme.js" defer></script>
-  <script src="themelib.js" defer></script>
+  <script src="look/theme.js" defer></script>
+  <script src="look/themelib.js" defer></script>
   <!-- «живые» темы: события и курсор для CSS, слой украшений, частицы (настройки — theme.js → setHooks) -->
-  <script src="themefx.js" defer></script>
+  <script src="look/themefx.js" defer></script>
   <!-- общие модули ядра: Discord и виджет OBS — свои карточки в «Интеграциях» ставят сами (kit.settingsCard в yandex.js) -->
   <link rel="stylesheet" href="core/discord.css" />
   <script src="core/discord.js" defer></script>
-  <script src="traymini.js" defer></script>
+  <script src="settings/traymini.js" defer></script>
   <!-- телефон: уведомление плеера и музыка в фоне (Android — MediaService.kt) -->
-  <script src="mobilemedia.js" defer></script>
+  <script src="mobile/mobilemedia.js" defer></script>
   <link rel="stylesheet" href="core/obs.css" />
   <script src="core/obs.js" defer></script>
   <!-- Whisper API (core/api.js, docs/API.md ядра): микшер и другие клиенты Whisper ставят сюда стиль; карточка — в «Оформлении» -->
   <script src="core/api.js" defer></script>
-  <script src="update.js" defer></script>
+  <script src="settings/update.js" defer></script>
   <!-- свои уведомления в углу экрана (notify.rs, окно notifywin.html): приглашения и подмигивания; настройки — Приложение → Уведомления -->
-  <link rel="stylesheet" href="notify.css" />
-  <script src="notify.js" defer></script>
+  <link rel="stylesheet" href="settings/notify.css" />
+  <script src="settings/notify.js" defer></script>
   <script src="core/together.js" defer></script>
   <!-- «Друзья» — общий модуль ядра (Whisper Archive: /api/friends, Rust — whisper/friends.rs); страница — kit.page в yandex.js -->
   <link rel="stylesheet" href="core/friends.css" />
@@ -68,64 +70,64 @@
   <!-- свой профиль Whisper Archive (core/profile.js): открывается из «Профиля» (выбор Яндекс / архив — main.js) -->
   <link rel="stylesheet" href="core/profile.css" />
   <script src="core/profile.js" defer></script>
-  <script src="listenstats.js" defer></script>
-  <script src="plays.js" defer></script>
+  <script src="pages/listenstats.js" defer></script>
+  <script src="player/plays.js" defer></script>
   <!-- кэш приложения: популярные нескачанные треки и проигранное из текущего плейлиста (cache.rs) -->
-  <link rel="stylesheet" href="cache.css" />
-  <script src="cache.js" defer></script>
-  <script src="prefetch.js" defer></script>
+  <link rel="stylesheet" href="player/cache.css" />
+  <script src="player/cache.js" defer></script>
+  <script src="player/prefetch.js" defer></script>
   <!-- кэш страниц: снимок «Лайков» на диске — карточка в настройках «Воспроизведение» (main.js → window.pageCache) -->
-  <script src="pagecache.js" defer></script>
+  <script src="pages/pagecache.js" defer></script>
   <!-- «Поделиться» в меню трека и ссылки whisper:// / music.yandex.* — открываются здесь, а не в браузере -->
-  <script src="share.js" defer></script>
+  <script src="library/share.js" defer></script>
   <!-- «Студия»: обрезка треков, свои версии (studio.rs) -->
-  <link rel="stylesheet" href="studio.css" />
-  <script src="studioinfo.js" defer></script>
-  <script src="studio.js" defer></script>
+  <link rel="stylesheet" href="pages/studio.css" />
+  <script src="pages/studioinfo.js" defer></script>
+  <script src="pages/studio.js" defer></script>
   <!-- перетаскивание в окно на любой странице: трек — окно «Что сделать с треком» (в «Лайки» / в архив) -->
-  <link rel="stylesheet" href="dropin.css" />
-  <script src="dropin.js" defer></script>
+  <link rel="stylesheet" href="library/dropin.css" />
+  <script src="library/dropin.js" defer></script>
   <!-- трек по ссылке (YouTube, SoundCloud, видео ВК → linkdl.rs, yt-dlp) — дальше то же окно, что у dropin.js -->
-  <script src="linkadd.js" defer></script>
+  <script src="library/linkadd.js" defer></script>
   <!-- синхронизация своих треков (студии) через Whisper Archive: /api/library, Rust — whisper/library.rs + studio.rs -->
-  <script src="libsync.js" defer></script>
+  <script src="library/libsync.js" defer></script>
   <!-- Настройки → «Панели»: порядок и видимость кнопок боковой панели -->
-  <link rel="stylesheet" href="panels.css" />
-  <script src="panels.js" defer></script>
+  <link rel="stylesheet" href="look/panels.css" />
+  <script src="look/panels.js" defer></script>
   <!-- меню трека: правый щелчок, скрытые действия (Интерфейс → «Меню трека») -->
   <!-- экспорт лайков и плейлистов в TXT / CSV / JSON (правый щелчок → «Экспорт», файл пишет export.rs) -->
-  <script src="listexport.js" defer></script>
-  <script src="tmenu.js" defer></script>
-  <link rel="stylesheet" href="backup.css" />
-  <script src="backup.js" defer></script>
+  <script src="library/listexport.js" defer></script>
+  <script src="settings/tmenu.js" defer></script>
+  <link rel="stylesheet" href="settings/backup.css" />
+  <script src="settings/backup.js" defer></script>
   <!-- браузерная версия: перенос настроек (webstate.js) и кнопки «Открыть в браузере» / «Вернуться в приложение» -->
-  <link rel="stylesheet" href="webmode.css" />
-  <script src="webstate.js" defer></script>
-  <script src="webmode.js" defer></script>
-  <script src="cli.js" defer></script>
-  <script src="themeguard.js" defer></script>
-  <link rel="stylesheet" href="hotkeys.css" />
-  <script src="hotkeys.js" defer></script>
-  <script src="keynav.js" defer></script>
-  <script src="imgview.js" defer></script>
-  <script src="uifont.js" defer></script>
-  <link rel="stylesheet" href="sleep.css" />
-  <script src="sleep.js" defer></script>
+  <link rel="stylesheet" href="web/webmode.css" />
+  <script src="web/webstate.js" defer></script>
+  <script src="web/webmode.js" defer></script>
+  <script src="look/cli.js" defer></script>
+  <script src="look/themeguard.js" defer></script>
+  <link rel="stylesheet" href="settings/hotkeys.css" />
+  <script src="settings/hotkeys.js" defer></script>
+  <script src="settings/keynav.js" defer></script>
+  <script src="look/imgview.js" defer></script>
+  <script src="look/uifont.js" defer></script>
+  <link rel="stylesheet" href="player/sleep.css" />
+  <script src="player/sleep.js" defer></script>
   <!-- «Пропускать тишину» и «Плавные переходы» (Воспроизведение) -->
-  <script src="transitions.js" defer></script>
-  <link rel="stylesheet" href="eq.css" />
-  <script src="eq.js" defer></script>
-  <link rel="stylesheet" href="output.css" />
-  <script src="output.js" defer></script>
-  <script src="engine.js" defer></script>
-  <script src="sound.js" defer></script>
-  <script src="devprofile.js" defer></script>
-  <link rel="stylesheet" href="layout.css" />
-  <link rel="stylesheet" href="mascot.css" />
-  <script src="mascot.js" defer></script>
-  <script src="layout.js"></script>
+  <script src="player/transitions.js" defer></script>
+  <link rel="stylesheet" href="player/eq.css" />
+  <script src="player/eq.js" defer></script>
+  <link rel="stylesheet" href="player/output.css" />
+  <script src="player/output.js" defer></script>
+  <script src="player/engine.js" defer></script>
+  <script src="player/sound.js" defer></script>
+  <script src="player/devprofile.js" defer></script>
+  <link rel="stylesheet" href="look/layout.css" />
+  <link rel="stylesheet" href="look/mascot.css" />
+  <script src="look/mascot.js" defer></script>
+  <script src="look/layout.js"></script>
   <!-- последним из .css: раскладка для телефона сильнее режимов «Расположения» -->
-  <link rel="stylesheet" href="mobile.css" />
+  <link rel="stylesheet" href="mobile/mobile.css" />
 </head>
 <body>
   <!-- динамический фон лежит внутри #bg: темы задают #bg место и форму (например, экран «Телевизора»),
@@ -498,7 +500,7 @@
             <button class="chip" data-v="5120">5 ГБ</button>
             <button class="chip" data-v="10240">10 ГБ</button>
           </div></div>
-          <label class="switch" title="Проигранные треки текущего альбома или плейлиста остаются на диске, пока ты его слушаешь; переключился на другой — удаляются. Популярные треки остаются"><input type="checkbox" id="cachePl" /><i></i><span>Сохранять текущий плейлист</span></label>
+          <label class="switch" title="Проигранные треки текущего альбома или плейлиста остаются на диске, пока ты его слушаешь; переключился на другой — удаляются. Популярные треки остаются. Под плейлист и Мою волну всегда остаётся не меньше 30% кэша"><input type="checkbox" id="cachePl" /><i></i><span>Сохранять текущий плейлист</span></label>
           <label class="switch" title="Пока играет трек, следующий из очереди (лайки, плейлист, Моя волна, комната «Слушать вместе») уже ложится на диск — переключение без ожидания сети. Работает, когда кэш включён"><input type="checkbox" id="pfOn" checked /><i></i><span>Загружать следующий трек заранее</span></label>
           <div class="lyrow" title="Последние дослушанные треки Моей волны остаются на диске: назад, история и без интернета — сразу с диска. Старые уходят сами"><span>Моя волна</span><div class="lyseg" id="cacheWave">
             <button class="chip" data-v="0" title="Треки волны не кэшировать">Выкл</button>
@@ -511,7 +513,7 @@
           <p class="status" id="cacheNote"></p>
           <div id="cacheBar" class="cachebar" hidden><i data-k="pop"></i><i data-k="pl"></i><i data-k="wave"></i></div>
           <div id="cacheLegend" class="cachelegend" hidden>
-            <span data-k="pop"><i></i>Популярные <b></b></span>
+            <span data-k="pop" title="Чем чаще и чем недавнее, среди всего, что ты слушаешь, играет трек, тем он популярнее. Популярные держат до 70% кэша, остальное — для текущего плейлиста и Моей волны. Не хватает места — первыми уходят наименее популярные"><i></i>Популярные <b></b></span>
             <span data-k="pl"><i></i>Плейлист <b></b></span>
             <span data-k="wave"><i></i>Моя волна <b></b></span>
             <span data-k="free"><i></i>Свободно <b></b></span>
@@ -628,7 +630,7 @@
           <p class="status" id="updNote"></p>
         </div>
 
-        <!-- ===== Данные: Статистика, Резервная копия | Сброс ===== -->
+        <!-- ===== Данные: Статистика, Резервная копия | Журнал ошибок, Сброс ===== -->
         <div class="card" id="statCard" data-tab="data">
           <h3>Статистика</h3>
           <label class="switch" title="Время, исполнители, треки, жанры и часы прослушивания — на странице «Статистика». Хранится только на этом компьютере"><input type="checkbox" id="lstOn" /><i></i><span>Записывать статистику прослушиваний</span></label>
@@ -640,7 +642,13 @@
           <div class="dcline"><span class="dcnote" id="bkAuto" title="Whisper сам сохраняет настройки и список скачанных треков на случай повреждения">Автокопии: —</span><button type="button" class="nav" id="bkAutoBtn">Автокопии…</button></div>
           <p class="status" id="bkNote"></p>
         </div>
-        <div class="card colbreak" id="resetCard" data-tab="data">
+        <div class="card colbreak" id="logCard" data-tab="data">
+          <h3>Журнал ошибок <i class="hint" title="Если что-то не работает — сохрани журнал и пришли автору файлом. В нём только ошибки и сведения о приложении и системе: без токенов, паролей и списков треков">i</i></h3>
+          <p class="dcnote" id="logInfo">Ошибок нет</p>
+          <div class="row"><button type="button" class="nav" id="logSave">Сохранить файл…</button><button type="button" class="nav" id="logCopy">Скопировать</button><button type="button" class="nav danger" id="logClear" title="Начать журнал заново: очисти, повтори то, что ломалось, и сохрани">Очистить</button></div>
+          <p class="status" id="logNote"></p>
+        </div>
+        <div class="card" id="resetCard" data-tab="data">
           <h3>Сброс</h3>
           <div class="row"><button class="nav danger" id="cfgReset" title="Стиль, цвета, фон и визуализатор вернутся к начальным. Загруженные темы останутся">Сбросить оформление…</button></div>
         </div>

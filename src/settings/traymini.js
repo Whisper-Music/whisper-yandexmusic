@@ -84,7 +84,7 @@
   // Форма знака — из картинки значка (tray-mono.png: белая W с орбитой, объём — прозрачностью), а не нарисована
   // линиями: так одноцветный значок совпадает с цветным. Красим её в нужный цвет (source-in).
   const MONO = new Image();
-  MONO.src = "tray-mono.png";
+  MONO.src = "assets/tray-mono.png";
   function glyph(dst, color, k) {
     // свой холст: перекраска (source-in) иначе залила бы и круг «как в стиле» под знаком
     const cv = document.createElement("canvas"); cv.width = cv.height = IC_SIZE;

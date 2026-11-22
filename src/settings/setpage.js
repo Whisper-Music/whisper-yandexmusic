@@ -25,7 +25,7 @@
     trayCard: "значок иконка tray мини-плеер", webCard: "браузер browser вкладка localhost сайт веб web", ntCard: "оповещения telegram звук всплывающие",
     hkCard: "сочетания shortcut клавиатура горячие клавиши", updCard: "версия обновить github",
     statCard: "статистика история прослушивания очистить", bkCard: "бэкап backup восстановить перенос копия",
-    resetCard: "сброс по умолчанию начальные",
+    resetCard: "сброс по умолчанию начальные", logCard: "лог ошибки баг отчёт журнал сломалось не работает",
   };
   const UNITS = ".switch, .lyrow, .slide, .dcline, .fontcur, .swatch, .swcol > .nav, .updline, .dlpath, .drop, .stylecard, .vizopt, .palette, .outlist > *, .row > .nav";
   const words = (el) => norm([el.textContent, el.title, el.getAttribute("aria-label"), ...[...el.querySelectorAll("[title]")].map((x) => x.title)].join(" "));

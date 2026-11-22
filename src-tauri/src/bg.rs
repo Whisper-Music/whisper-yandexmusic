@@ -222,7 +222,7 @@ fn open_picked(path: &Path, want: &Ident) -> Result<std::fs::File, String> {
 
 /// Содержимое файла из последнего выбора/перетаскивания — по номеру в списке.
 /// `kind` — сценарий (text, image, theme, video): от него зависит потолок размера.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn bg_read(state: tauri::State<Picked>, id: usize, kind: String) -> Result<tauri::ipc::Response, String> {
     let limit = limit_for(&kind).ok_or("Неизвестный тип файла")?;
     let (path, ident) = state

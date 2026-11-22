@@ -13,12 +13,12 @@ fn token_looks_valid(t: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn token_exists() -> Result<bool, String> {
     secret::get().map(|t| t.is_some())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn token_store(token: String) -> Result<(), String> {
     let t = token.trim();
     if !token_looks_valid(t) {

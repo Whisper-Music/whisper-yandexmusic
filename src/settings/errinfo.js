@@ -91,6 +91,7 @@
   window.errExplain = (e, ctx = {}) => {
     const x = explain(e, ctx);
     window.errLast = { ...x, at: Date.now(), track: ctx.track?.id != null ? String(ctx.track.id) : null };
+    window.errLog?.add(`плеер · ${x.short}`, x.text, x.raw !== x.text ? x.raw : "");
     return x;
   };
 })();

@@ -9,7 +9,7 @@ import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src");
-const SKIP = new Set(["cli.js", path.join("core", "wmt.js"), path.join("i18n", "en.js"), "i18n.js", "webstart.html", "bridge.html"]);
+const SKIP = new Set([path.join("look", "cli.js"), path.join("core", "wmt.js"), path.join("i18n", "en.js"), path.join("i18n", "i18n.js"), "webstart.html", "bridge.html"]);
 const CY = /[А-Яа-яЁё]/;
 const norm = (s) => s.replace(/\s+/g, " ").trim();
 const args = process.argv.slice(2);

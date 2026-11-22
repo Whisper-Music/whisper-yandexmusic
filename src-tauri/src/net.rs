@@ -576,7 +576,7 @@ pub async fn track_url_q(id: &str, low: bool) -> Result<String, String> {
     mp3_link(&field("host"), &field("path"), &field("ts"), &field("s"))
 }
 
-/// Ссылка для плеера <audio> (подпись MD5 теперь считает Rust — команды md5_hex больше нет).
+/// Ссылка для плеера <audio>; подпись MD5 считает Rust.
 /// quality: "low" — экономное (наименьший битрейт), иначе лучшее.
 #[tauri::command]
 pub async fn ym_track_url(id: String, quality: Option<String>) -> Result<String, String> {

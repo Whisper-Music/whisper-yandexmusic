@@ -38,6 +38,7 @@
       ]
     },
     "allow-app-ready",
+    "allow-gpu-raster",
     "allow-perf-log",
     "allow-win-minimize",
     "allow-win-toggle-max",

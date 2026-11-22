@@ -151,8 +151,7 @@ button { font: inherit; color: var(--text); cursor: pointer; border: 0; backgrou
 .volpop::after { content: ""; position: absolute; left: -16px; right: -16px; top: 100%; height: 16px; }
 /* Открытая «Очередь и история» (.qpanel, z-index 9) стоит над плеером, и ползунок громкости уходил под неё.
    Пока ползунок открыт — плеер выше панели. .volwrap — для тем, где плеер разобран (display: contents, retro-tv).
-   html.vol-open ставит main.js (наведение и фокус на .volwrap). Было html:has(.player .volwrap:hover…) — с ним
-   любое изменение внутри плеера (время раз в секунду) пересчитывало стили всего окна: в «Лайках» ~70 мс каждую секунду. */
+   html.vol-open ставит main.js (наведение и фокус на .volwrap) — не html:has(), почему — там же, в main.js. */
 html.vol-open .player,
 .player .volwrap:hover, .player .volwrap:focus-within { z-index: 10 !important; }
 .volval { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -2262,8 +2261,7 @@ body.vizfull-on .thbtns { visibility: hidden; }
 /* --accent наследуется всеми элементами окна: плавный переход на 60 кадрах — это пересчёт стилей ВСЕГО окна
    каждый кадр (длинный список лайков — тысячи элементов), отсюда фриз на смене трека. 12 шагов за 1,2 с —
    цвет так же перетекает, а пересчётов в 6 раз меньше. */
-/* :root.dyn-on — класс ставит main.js вместе с body.dyn-on (не :root:has(...): :has у корня окна пересчитывает
-   стили всего документа при изменениях внутри него) */
+/* :root.dyn-on ставит main.js вместе с body.dyn-on (не :root:has() — пересчитывал бы стили всего окна) */
 :root.dyn-on { transition: --accent 1.2s steps(12), --accent2 1.2s steps(12); }
 /* цвет выбирают в пипетке (main.js, класс cpick) — переход не нужен, иначе цвет отстаёт от курсора */
 :root.cpick.dyn-on { transition: none; }

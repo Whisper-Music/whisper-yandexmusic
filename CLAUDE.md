@@ -79,6 +79,8 @@ src/                      фронтенд (без сборки, файлы от
   main.js                 ядро: API Яндекса, плеер, страницы, списки, настройки, цвета, фон, DynCss
   styles.css              общее оформление + встроенные стили (:root[data-style="neon|royal|steam|lolitta"])
   theme.js / theme.css    свои темы в этом приложении: загрузка, хранение, фон, сохранение в файл, карточки стилей
+  wmtworker.js            разбор сохранённых тем .wmt в Web Worker (theme.js → openThemeBg → revive); не запустился —
+                          разбор на странице. Воркеры — только из своих файлов (CSP worker-src 'self'), DOM и __TAURI__ им не видны
   themelib.js/.css        «Библиотека тем» (репозиторий Whisper-Music/whisper-themes)
   listexport.js           экспорт лайков и плейлистов: правый щелчок → «Экспорт» (tmenu.js → exportItem) → TXT («Исполнитель -
                           Название» — импорт Яндекса, TuneMyMusic, Soundiiz), CSV (колонки TuneMyMusic), JSON (все данные);
@@ -118,6 +120,8 @@ src/                      фронтенд (без сборки, файлы от
   cache.js                кэш приложения (Rust — cache.rs, папка app_cache_dir/tracks): популярные (дослушаны 3 раза)
                           и проигранные треки текущего плейлиста; играет тем же ymlocal:// (download::open_local
                           смотрит в кэш, если трек не скачан), window.appCache.has(id); карточка «Кэш» во «Воспроизведении»
+                          Популярность трека затухает вдвое за 400 прослушиваний ДРУГИХ треков (не по часам); популярные
+                          держат ≤70% лимита, свободное занимают, но трек плейлиста/волны вытесняет их до этой доли
   linkadd.js              «Добавить трек»: по ссылке (YouTube, SoundCloud, видео/клипы ВК) или с компьютера (audio_pick).
                           Одно окно window.addTrack: поле для ссылки + зона «Перетащи файл сюда или выбери» (щелчок —
                           audio_pick; брошенный файл идёт обычным bg-drop → dropin.js, окно закрывается). Открывают: меню
@@ -153,6 +157,10 @@ src/                      фронтенд (без сборки, файлы от
                           событие whisper:output из output.js)
   errinfo.js              понятные ошибки: window.errExplain(e, ctx) → где проблема (Яндекс, сеть, устройство, декодер,
                           файл, архив) и что делать; исходный текст — в title строки состояния; последняя — window.errLast
+  errlog.js               журнал ошибок, БЕЗ defer, после lsguard.js: window.onerror, unhandledrejection, console.error,
+                          неудачные invoke (main.js), errExplain (errinfo.js) → window.errLog; последние 300 — localStorage
+                          ym_errlog (в копию не попадает); секреты и имя пользователя в путях вырезаются. Карточка #logCard
+                          (Данные): «Сохранить файл…» (export_save, txt), «Скопировать», «Очистить»
   lsguard.js              БЕЗ defer, сразу после boot.js: замечает повреждённые записи localStorage до main.js (window.__lsCheck)
   notify.js/.css          свои уведомления, как в Telegram (не системные): приглашение в комнату и «подмигнуть»; общие
                           модули зовут kit.notify → window.sysNotify → notify_show (notify.rs). Окно notifywin.html/js/css
@@ -273,6 +281,9 @@ connect-src 'self' ipc: http://ipc.localhost; font-src 'self' data: blob:`.
 
 ### Новая Rust-команда — в четырёх местах
 1. `src-tauri/src/<модуль>.rs` — `#[tauri::command] pub async fn имя(…) -> Result<…, String>`; тяжёлое — в `tauri::async_runtime::spawn_blocking`.
+   Команда без `async` выполняется в главном потоке приложения (окно, трей, все IPC — по очереди за ней). Трогает диск,
+   системное хранилище или сеть — `async` или `#[tauri::command(async)]` (так сделаны кэш, скачанные, студия, автокопии).
+   Без `async` — только то, что работает с окном, треем и меню, и мгновенное.
 2. `src-tauri/src/lib.rs` — `mod <модуль>;` и `<модуль>::имя` в `generate_handler![…]`.
 3. `src-tauri/build.rs` — `"имя"` в `COMMANDS`.
 4. `src-tauri/capabilities/default.json` (или нужный файл) — `"allow-имя"` (дефисы вместо `_`).
@@ -416,6 +427,8 @@ connect-src 'self' ipc: http://ipc.localhost; font-src 'self' data: blob:`.
   играет браузерный процесс WebView2 (потомок приложения), иначе «Захват звука приложения» в OBS слышит тишину.
   И `--disable-gpu-rasterization`: содержимое рисует процессор, кадр собирает видеокарта — первый кадр интерфейса
   при запуске на ~0,6 с раньше (видеокарта долго готовилась рисовать содержимое), процессор во время игры не дороже.
+  Кроме тем с курсором (`--mx`/`--my`/`--mpx`/`--mpy`): параллакс так дёргается, поэтому themefx.js → `gpu_raster(on)` (shell.rs)
+  ставит метку `%APPDATA%\ya\gpu-raster`, и со следующего запуска флага нет; ответ true — «Перезапусти приложение».
 - Запуск: окно показывается сразу — boot.js первым же скриптом зовёт `app_ready({ bg })` с цветом шторки (winstate.rs ставит
   его фоном движка, чтобы не мелькнул белый), интерфейс под шторкой проявляется, когда стиль готов. Свои темы при запуске —
   только текущая, остальные подключаются потом (theme.js). Трей: рисование стоит сразу, а память и кэши отдаются через
