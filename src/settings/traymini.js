@@ -1,6 +1,7 @@
 // Значок в трее: обычное меню (по умолчанию) или мини-плеер (настройка «Значок в трее»).
 // Здесь — переключатель в настройках и передача «что играет» в мини-плеер (окно mini.html, src-tauri/src/mini.rs).
 // «Что играет» берётся только из ядра Whisper (Whisper.player) — модуль не зависит от переменных main.js.
+import { ICONS } from "../pages/stats.js";
 (() => {
   const W = window.Whisper;
   const KEY = "ym_tray";

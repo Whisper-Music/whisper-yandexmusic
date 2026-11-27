@@ -8,6 +8,9 @@
 // Rust (audiodev.rs) — разово, на 5 секунд и до закрытия программы; поток микрофона закрывается сразу же.
 // Запрос делается, только когда список действительно нужен: открыта вкладка «Звук» или подменю в «⋯»,
 // либо выбрано не системное устройство (без разрешения WebView2 не даст вывести звук на него).
+import { $, ICON, invoke, lsJSON, svgp } from "../app/base.js";
+import { menuAlive, menuHead, menuItem, menuNote, menuReset, menuSep, placeMenu, showToast, tmenu } from "../app/menu.js";
+import { trackMenuMain } from "../app/trackmenu.js";
 (() => {
   const KEY = "ym_out";
   const canEl = typeof HTMLMediaElement !== "undefined" && "setSinkId" in HTMLMediaElement.prototype && !!navigator.mediaDevices?.enumerateDevices;

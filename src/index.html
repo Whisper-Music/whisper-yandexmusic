@@ -18,22 +18,74 @@
   <!-- язык интерфейса: словарь и переводчик, тоже без defer — успеть до первой отрисовки -->
   <script src="i18n/en.js"></script>
   <script src="i18n/i18n.js"></script>
-  <link rel="stylesheet" href="look/styles.css" />
+  <!-- оформление (бывший styles.css): строго по номерам — от порядка зависит, чьё правило сильнее -->
+  <link rel="stylesheet" href="look/styles/01-base.css" />
+  <link rel="stylesheet" href="look/styles/02-royal.css" />
+  <link rel="stylesheet" href="look/styles/03-neon.css" />
+  <link rel="stylesheet" href="look/styles/04a-stats.css" />
+  <link rel="stylesheet" href="look/styles/04b-stations.css" />
+  <link rel="stylesheet" href="look/styles/05-royal-anim.css" />
+  <link rel="stylesheet" href="look/styles/06-steam.css" />
+  <link rel="stylesheet" href="look/styles/07-lolitta.css" />
+  <link rel="stylesheet" href="look/styles/08-player-ui.css" />
+  <link rel="stylesheet" href="look/styles/09a-viz.css" />
+  <link rel="stylesheet" href="look/styles/09b-page-tint.css" />
+  <link rel="stylesheet" href="look/styles/09c-search.css" />
+  <link rel="stylesheet" href="look/styles/09d-colors.css" />
+  <link rel="stylesheet" href="look/styles/09e-themes.css" />
+  <link rel="stylesheet" href="look/styles/09f-small-window.css" />
+  <link rel="stylesheet" href="look/styles/09g-player-extras.css" />
+  <link rel="stylesheet" href="look/styles/09h-dynbg.css" />
+  <link rel="stylesheet" href="look/styles/09i-misc.css" />
+  <link rel="stylesheet" href="look/styles/10-listenstats.css" />
+  <link rel="stylesheet" href="look/styles/11-extras.css" />
   <!-- оформление «Слушать вместе» (core/together.js) — сразу после общего: перекрывает его правила плеера и меню -->
   <link rel="stylesheet" href="core/together.css" />
   <!-- ядро Whisper (общее для всех приложений Whisper) — раньше main.js; yandex.js — сразу после него и до theme.js -->
   <script src="core/whisper-core.js" defer></script>
-  <script src="app/imgguard.js" defer></script>
-  <script src="app/main.js" defer></script>
-  <script src="settings/errinfo.js" defer></script>
+  <script type="module" src="app/imgguard.js"></script>
+  <!-- ES-модули: друг другу — import/export, порядок выполнения задаёт граф import (main.js импортирует почти всё — его
+       тело идёт после них). При загрузке только объявляют своё; состояние main.js (свойства window) — внутри функций.
+       Обычным скриптам (mobile.js, layout.js, ядро) нужное отдают ещё и через window -->
+  <script type="module" src="app/base.js"></script>
+  <script type="module" src="look/config.js"></script>
+  <script type="module" src="app/offline.js"></script>
+  <script type="module" src="app/menu.js"></script>
+  <script type="module" src="app/trackmenu.js"></script>
+  <script type="module" src="look/colors.js"></script>
+  <script type="module" src="look/bg.js"></script>
+  <script type="module" src="player/viz.js"></script>
+  <script type="module" src="look/dynbg.js"></script>
+  <script type="module" src="player/full.js"></script>
+  <script type="module" src="pages/playlists.js"></script>
+  <script type="module" src="library/downloads.js"></script>
+  <script type="module" src="pages/search.js"></script>
+  <script type="module" src="pages/stats.js"></script>
+  <script type="module" src="pages/artist.js"></script>
+  <script type="module" src="pages/wave.js"></script>
+  <script type="module" src="pages/likes.js"></script>
+  <script type="module" src="settings/tabs.js"></script>
+  <script type="module" src="look/lolitta.js"></script>
+  <script type="module" src="app/window.js"></script>
+  <script type="module" src="player/volume.js"></script>
+  <script type="module" src="player/modes.js"></script>
+  <script type="module" src="player/like.js"></script>
+  <script type="module" src="app/nav.js"></script>
+  <script type="module" src="app/pins.js"></script>
+  <script type="module" src="pages/artistprefs.js"></script>
+  <script type="module" src="app/list.js"></script>
+  <script type="module" src="app/login.js"></script>
+  <script type="module" src="player/core.js"></script>
+  <script type="module" src="app/main.js"></script>
+  <script type="module" src="settings/errinfo.js"></script>
   <!-- «распад на пиксели» строки, убранной из лайков (main.js → toggleLike) -->
-  <script src="look/dust.js" defer></script>
+  <script type="module" src="look/dust.js"></script>
   <!-- настройки: общее окно «Подробнее» (openDetails) и страница — поиск, Ctrl+F, вкладки сверху/слева -->
   <link rel="stylesheet" href="settings/details.css" />
-  <script src="settings/details.js" defer></script>
+  <script type="module" src="settings/details.js"></script>
   <link rel="stylesheet" href="settings/setpage.css" />
-  <script src="settings/setpage.js" defer></script>
-  <script src="app/yandex.js" defer></script>
+  <script type="module" src="settings/setpage.js"></script>
+  <script type="module" src="app/yandex.js"></script>
   <!-- Whisper Archive — общий модуль ядра Whisper -->
   <link rel="stylesheet" href="core/archive.css" />
   <script src="core/archive.js" defer></script>
@@ -45,24 +97,32 @@
   <!-- движок тем ядра: формат .wmt и привязка CSS темы (чистые модули, без зависимостей) — до theme.js и themelib.js -->
   <script src="core/wmt.js" defer></script>
   <script src="core/theme-css.js" defer></script>
-  <script src="look/theme.js" defer></script>
-  <script src="look/themelib.js" defer></script>
+  <script type="module" src="look/theme.js"></script>
+  <script type="module" src="look/themelib.js"></script>
   <!-- «живые» темы: события и курсор для CSS, слой украшений, частицы (настройки — theme.js → setHooks) -->
-  <script src="look/themefx.js" defer></script>
+  <script type="module" src="look/themefx.js"></script>
   <!-- общие модули ядра: Discord и виджет OBS — свои карточки в «Интеграциях» ставят сами (kit.settingsCard в yandex.js) -->
   <link rel="stylesheet" href="core/discord.css" />
   <script src="core/discord.js" defer></script>
-  <script src="settings/traymini.js" defer></script>
+  <script type="module" src="settings/traymini.js"></script>
   <!-- телефон: уведомление плеера и музыка в фоне (Android — MediaService.kt) -->
-  <script src="mobile/mobilemedia.js" defer></script>
+  <!-- телефон (после main.js): разделы, плеер, мелочи; запускает start.js — его зовёт mobile/mobile.js по DOMContentLoaded -->
+  <script type="module" src="mobile/words.js"></script>
+  <script type="module" src="mobile/sections.js"></script>
+  <script type="module" src="mobile/player.js"></script>
+  <script type="module" src="mobile/extras.js"></script>
+  <script type="module" src="mobile/start.js"></script>
+  <script type="module" src="mobile/mobilemedia.js"></script>
+  <!-- телефон: трек Яндекса для визуализатора — по кускам, звук сразу (Rust — net.rs fetch_range) -->
+  <script type="module" src="mobile/stream.js"></script>
   <link rel="stylesheet" href="core/obs.css" />
   <script src="core/obs.js" defer></script>
   <!-- Whisper API (core/api.js, docs/API.md ядра): микшер и другие клиенты Whisper ставят сюда стиль; карточка — в «Оформлении» -->
   <script src="core/api.js" defer></script>
-  <script src="settings/update.js" defer></script>
+  <script type="module" src="settings/update.js"></script>
   <!-- свои уведомления в углу экрана (notify.rs, окно notifywin.html): приглашения и подмигивания; настройки — Приложение → Уведомления -->
   <link rel="stylesheet" href="settings/notify.css" />
-  <script src="settings/notify.js" defer></script>
+  <script type="module" src="settings/notify.js"></script>
   <script src="core/together.js" defer></script>
   <!-- «Друзья» — общий модуль ядра (Whisper Archive: /api/friends, Rust — whisper/friends.rs); страница — kit.page в yandex.js -->
   <link rel="stylesheet" href="core/friends.css" />
@@ -70,64 +130,87 @@
   <!-- свой профиль Whisper Archive (core/profile.js): открывается из «Профиля» (выбор Яндекс / архив — main.js) -->
   <link rel="stylesheet" href="core/profile.css" />
   <script src="core/profile.js" defer></script>
-  <script src="pages/listenstats.js" defer></script>
-  <script src="player/plays.js" defer></script>
+  <script type="module" src="pages/listenstats.js"></script>
+  <script type="module" src="player/plays.js"></script>
   <!-- кэш приложения: популярные нескачанные треки и проигранное из текущего плейлиста (cache.rs) -->
   <link rel="stylesheet" href="player/cache.css" />
-  <script src="player/cache.js" defer></script>
-  <script src="player/prefetch.js" defer></script>
+  <script type="module" src="player/cache.js"></script>
+  <script type="module" src="player/prefetch.js"></script>
   <!-- кэш страниц: снимок «Лайков» на диске — карточка в настройках «Воспроизведение» (main.js → window.pageCache) -->
-  <script src="pages/pagecache.js" defer></script>
+  <script type="module" src="pages/pagecache.js"></script>
   <!-- «Поделиться» в меню трека и ссылки whisper:// / music.yandex.* — открываются здесь, а не в браузере -->
-  <script src="library/share.js" defer></script>
+  <script type="module" src="library/share.js"></script>
   <!-- «Студия»: обрезка треков, свои версии (studio.rs) -->
   <link rel="stylesheet" href="pages/studio.css" />
-  <script src="pages/studioinfo.js" defer></script>
-  <script src="pages/studio.js" defer></script>
+  <script type="module" src="pages/studioinfo.js"></script>
+  <script type="module" src="pages/studioshare.js"></script>
+  <script type="module" src="pages/studio.js"></script>
   <!-- перетаскивание в окно на любой странице: трек — окно «Что сделать с треком» (в «Лайки» / в архив) -->
   <link rel="stylesheet" href="library/dropin.css" />
-  <script src="library/dropin.js" defer></script>
+  <script type="module" src="library/dropin.js"></script>
   <!-- трек по ссылке (YouTube, SoundCloud, видео ВК → linkdl.rs, yt-dlp) — дальше то же окно, что у dropin.js -->
-  <script src="library/linkadd.js" defer></script>
+  <script type="module" src="library/linkadd.js"></script>
+  <!-- альбом по ссылке: длинное видео по главам/паузам, плейлист (linkset.rs) — зовёт linkadd.js -->
+  <link rel="stylesheet" href="library/linkalbum.css" />
+  <script type="module" src="library/linkalbum.js"></script>
   <!-- синхронизация своих треков (студии) через Whisper Archive: /api/library, Rust — whisper/library.rs + studio.rs -->
-  <script src="library/libsync.js" defer></script>
+  <script type="module" src="library/libsync.js"></script>
   <!-- Настройки → «Панели»: порядок и видимость кнопок боковой панели -->
   <link rel="stylesheet" href="look/panels.css" />
-  <script src="look/panels.js" defer></script>
+  <script type="module" src="look/panels.js"></script>
   <!-- меню трека: правый щелчок, скрытые действия (Интерфейс → «Меню трека») -->
   <!-- экспорт лайков и плейлистов в TXT / CSV / JSON (правый щелчок → «Экспорт», файл пишет export.rs) -->
-  <script src="library/listexport.js" defer></script>
-  <script src="settings/tmenu.js" defer></script>
+  <script type="module" src="library/listexport.js"></script>
+  <script type="module" src="settings/tmenu.js"></script>
   <link rel="stylesheet" href="settings/backup.css" />
-  <script src="settings/backup.js" defer></script>
+  <script type="module" src="settings/backup.js"></script>
   <!-- браузерная версия: перенос настроек (webstate.js) и кнопки «Открыть в браузере» / «Вернуться в приложение» -->
   <link rel="stylesheet" href="web/webmode.css" />
   <script src="web/webstate.js" defer></script>
-  <script src="web/webmode.js" defer></script>
-  <script src="look/cli.js" defer></script>
-  <script src="look/themeguard.js" defer></script>
+  <script type="module" src="web/webmode.js"></script>
+  <script type="module" src="look/cli.js"></script>
+  <script type="module" src="look/cli-eggs.js"></script>
+  <!-- командная строка (Ctrl+K): страницы, настройки, стили, команды консоли и треки в одном поле -->
+  <link rel="stylesheet" href="app/palette.css" />
+  <script type="module" src="app/palette.js"></script>
+  <!-- знакомство при первом запуске и «Что нового» (история — app/changes.js) -->
+  <link rel="stylesheet" href="app/welcome.css" />
+  <script type="module" src="app/welcome.js"></script>
+  <script type="module" src="look/themeguard.js"></script>
   <link rel="stylesheet" href="settings/hotkeys.css" />
-  <script src="settings/hotkeys.js" defer></script>
-  <script src="settings/keynav.js" defer></script>
-  <script src="look/imgview.js" defer></script>
-  <script src="look/uifont.js" defer></script>
+  <script type="module" src="settings/hotkeys.js"></script>
+  <script type="module" src="settings/keynav.js"></script>
+  <script type="module" src="look/imgview.js"></script>
+  <script type="module" src="look/uifont.js"></script>
   <link rel="stylesheet" href="player/sleep.css" />
-  <script src="player/sleep.js" defer></script>
+  <script type="module" src="player/sleep.js"></script>
   <!-- «Пропускать тишину» и «Плавные переходы» (Воспроизведение) -->
-  <script src="player/transitions.js" defer></script>
+  <script type="module" src="player/transitions.js"></script>
   <link rel="stylesheet" href="player/eq.css" />
-  <script src="player/eq.js" defer></script>
+  <script type="module" src="player/eq.js"></script>
   <link rel="stylesheet" href="player/output.css" />
-  <script src="player/output.js" defer></script>
-  <script src="player/engine.js" defer></script>
-  <script src="player/sound.js" defer></script>
-  <script src="player/devprofile.js" defer></script>
-  <link rel="stylesheet" href="look/layout.css" />
+  <script type="module" src="player/output.js"></script>
+  <script type="module" src="player/engine.js"></script>
+  <script type="module" src="player/cast.js"></script>
+  <script type="module" src="player/sound.js"></script>
+  <script type="module" src="player/devprofile.js"></script>
+  <!-- «Расположение» (бывший layout.css): режимы, закреплённые, панели, мини-вид, время трека -->
+  <link rel="stylesheet" href="look/layout/01-sides.css" />
+  <link rel="stylesheet" href="look/layout/02-pins.css" />
+  <link rel="stylesheet" href="look/layout/03-panels.css" />
+  <link rel="stylesheet" href="look/layout/04-super.css" />
+  <link rel="stylesheet" href="look/layout/05-time-card.css" />
   <link rel="stylesheet" href="look/mascot.css" />
-  <script src="look/mascot.js" defer></script>
+  <script type="module" src="look/mascot.js"></script>
   <script src="look/layout.js"></script>
   <!-- последним из .css: раскладка для телефона сильнее режимов «Расположения» -->
-  <link rel="stylesheet" href="mobile/mobile.css" />
+  <!-- телефон (бывший mobile.css): всё под html.mobile, на компьютере не действует; порядок = сила правил -->
+  <link rel="stylesheet" href="mobile/styles/01-layout.css" />
+  <link rel="stylesheet" href="mobile/styles/02-lists.css" />
+  <link rel="stylesheet" href="mobile/styles/03-player.css" />
+  <link rel="stylesheet" href="mobile/styles/04-wave-profile.css" />
+  <link rel="stylesheet" href="mobile/styles/05-settings.css" />
+  <link rel="stylesheet" href="mobile/styles/06-pages.css" />
 </head>
 <body>
   <!-- динамический фон лежит внутри #bg: темы задают #bg место и форму (например, экран «Телевизора»),
@@ -167,7 +250,7 @@
     <nav class="panel pinrail" id="pinRail" aria-label="Закреплённые"></nav>
 
     <aside class="panel side">
-      <input id="search" class="search" type="search" placeholder="Поиск" autocomplete="off" spellcheck="false" />
+      <input id="search" class="search" type="search" placeholder="Поиск" title="Поиск музыки · Ctrl+K — командная строка" autocomplete="off" spellcheck="false" />
       <button class="nav" id="wave">Моя волна</button>
       <button class="nav active" id="likes">Лайки</button>
       <button class="nav" id="statsBtn">Статистика</button>
@@ -178,6 +261,8 @@
       <!-- только во вкладке браузера (html.webmode) -->
       <button class="nav webback" id="webBackBtn" hidden>Вернуться в приложение</button>
       <button class="nav" id="profile">Профиль</button>
+      <!-- версия → окно «Что нового» (app/welcome.js; номер ставит он же); в свёрнутой панели и мини-виде не видна -->
+      <button type="button" class="sidever" id="sideVer" title="Что нового" data-noi18n></button>
     </aside>
 
     <main class="main">
@@ -479,6 +564,9 @@
           <h3>Переходы между треками <i class="hint" title="Чтобы знать, где тишина и как громко звучат края, трек целиком проверяется заранее. Для нескачанных треков это ещё одна загрузка в экономном качестве">i</i></h3>
           <label class="switch" title="Тишина в начале трека перематывается, а на тишине в конце сразу включается следующий"><input type="checkbox" id="xfSilence" /><i></i><span>Пропускать тишину</span></label>
           <label class="switch" title="Следующий трек начинается тихо — конец этого плавно затихает до его уровня. Начинается громко после тихого конца — входит мягко и за пару секунд набирает громкость"><input type="checkbox" id="xfSmooth" /><i></i><span>Плавные переходы</span></label>
+          <label class="switch" title="Следующий трек начинается раньше и звучит поверх этого, а этот плавно затихает — без паузы на стыке"><input type="checkbox" id="xfDj" /><i></i><span>DJ-переход</span></label>
+          <label class="slide" id="xfDjRow" title="Сколько секунд треки звучат вместе"><span>Наложение · <b id="xfDjLenV">8 с</b></span><input type="range" id="xfDjLen" min="2" max="15" step="1" /></label>
+          <label class="switch" title="Пока играет «Моя волна», следующим ставится трек с похожим темпом и в соседней тональности — из тех, что волна уже прислала. Подходящего нет — порядок не меняется"><input type="checkbox" id="xfMatch" /><i></i><span>Волна по темпу и тональности</span></label>
         </div>
         <div class="card colbreak" id="dlCard" data-tab="play">
           <h3>Скачивание треков</h3>
@@ -544,6 +632,12 @@
           <div id="outList" class="outlist" role="radiogroup" aria-label="Устройство вывода"></div>
           <div class="row"><button type="button" class="nav" id="outRefresh">Обновить список</button></div>
           <p class="status" id="outNote"></p>
+        </div>
+        <div class="card" id="castCard" data-tab="out">
+          <h3>Телевизор <i class="hint" title="Телевизор или колонка с DLNA в той же сети, что и компьютер. Звук идёт только из телевизора, а Whisper остаётся пультом. В первый раз Windows может спросить доступ к сети — разреши, иначе телевизор не получит трек.">i</i></h3>
+          <div id="castList" class="outlist" role="radiogroup" aria-label="Телевизор"></div>
+          <div class="row"><button type="button" class="nav" id="castScan">Найти телевизоры</button><button type="button" class="nav" id="castOff" hidden>Отключить</button></div>
+          <p class="status" id="castNote"></p>
         </div>
         <div class="card" id="dpCard" data-tab="out">
           <h3>Профили устройств <i class="hint" title="Громкость, нормализация, режим вывода и эквалайзер запоминаются для каждого устройства отдельно и возвращаются, когда звук снова идёт на него.">i</i></h3>
@@ -627,6 +721,7 @@
             <div id="updBar" class="updbar" hidden><i></i></div>
             <div class="row"><button type="button" class="nav active" id="updInstall">Обновить и перезапустить</button><button type="button" class="nav" id="updPage">Страница выпуска</button></div>
           </div>
+          <div class="dcline"><span class="dcnote">Что изменилось в каждой версии</span><button type="button" class="nav" id="updHistory">Что нового…</button></div>
           <p class="status" id="updNote"></p>
         </div>
 

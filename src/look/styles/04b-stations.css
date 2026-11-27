@@ -1,0 +1,23 @@
+/* stations — Список станций волны (звёздочка закреплённого жанра) и кнопки справа в шапке страницы.
+   Часть бывшего styles.css: файлы look/styles/* подключаются строго по порядку в index.html (порядок = сила правил). */
+.stgrid { min-height: 96px; }
+/* закрепить жанр: звёздочка в углу пункта — при наведении, у закреплённого всегда */
+.stgrid { padding: 6px 6px 2px 0; }
+.stgrid .pill { position: relative; }
+.stgrid .ststar {
+  position: absolute; top: -7px; right: -7px; z-index: 1; width: 19px; height: 19px; border-radius: 50%;
+  display: grid; place-items: center; font-style: normal; font-size: 12px; line-height: 1; cursor: pointer;
+  color: var(--on-accent, #0b0618); background: var(--accent2); text-shadow: none;
+  opacity: 0; transform: scale(.6); transition: opacity .12s, transform .12s; pointer-events: none;
+}
+.stgrid .pill:hover .ststar, .stgrid .pill:focus-visible .ststar { opacity: 1; transform: none; pointer-events: auto; }
+.stgrid .ststar.on { opacity: 1; transform: none; pointer-events: auto; width: 15px; height: 15px; top: -5px; right: -5px; font-size: 10px; }
+.stgrid .pill:hover .ststar.on { width: 19px; height: 19px; top: -7px; right: -7px; font-size: 12px; }
+.stgrid .ststar:hover { filter: brightness(1.2); }
+.stgrid .stbreak { flex: 1 0 100%; height: 1px; margin: 3px 0; background: rgba(255,255,255,.1); }
+:root[data-anim="off"] .stgrid .ststar { transition: none; }
+.stmsg { flex: 1 0 100%; margin: 0; font-size: 13px; line-height: 1.4; color: var(--muted); }
+
+/* кнопки справа в шапке («Моя волна по артисту», «Скачать», «Закрепить») — одной группой у правого края:
+   отступ «auto» только у первой видимой, иначе свободное место делилось между ними и первая висела посередине */
+.head .pin:not([hidden]) ~ .pin { margin-left: -6px; }

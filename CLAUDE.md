@@ -2,9 +2,10 @@
 
 Неофициальный десктопный клиент Яндекс Музыки на **Tauri 2** (Rust + системный WebView: WebView2 в Windows,
 WebKitGTK в Linux). Фронтенд — **чистый JS/CSS/HTML без сборщика и фреймворков**. Свои темы оформления — файлы `.wmt`.
-Автор — Вадим. Версия — одна, в `package.json` (сейчас 0.8.x): `npm run version X.Y.Z` (scripts/set-version.mjs) сам
+Автор — Вадим. Версия — одна, в `package.json` (сейчас 1.2.x): `npm run version X.Y.Z` (scripts/set-version.mjs) сам
 переносит её в `src-tauri/Cargo.toml`, `Cargo.lock` и `package-lock.json`; `tauri.conf.json` берёт её из package.json
 (`"version": "../package.json"`). Руками в Cargo.toml и tauri.conf.json версию не меняй.
+Новая версия — ещё и запись сверху в `src/app/changes.js` (её покажет «Что нового» после обновления).
 
 ## Язык и стиль
 
@@ -13,8 +14,27 @@ WebKitGTK в Linux). Фронтенд — **чистый JS/CSS/HTML без сб
 - Комментарии объясняют **почему**, а не что; коротко, по-человечески. Стиль комментариев в файле сохраняй.
 - Код плотный: короткие функции, `const $ = (s) => document.querySelector(s)`, однострочники там, где читаемо.
   Не переписывай чужой код «под себя» без причины.
-- Новую самостоятельную функцию удобнее делать **отдельным модулем** `src/<имя>.js` (+ `<имя>.css`) в виде IIFE
-  `(() => { … })();`, а не раздувать `main.js` (в нём уже ~5000 строк).
+- Новую самостоятельную функцию удобнее делать **отдельным модулем** `src/<папка>/<имя>.js` (+ `<имя>.css`) — ES-модулем с
+  `export` (см. «Скрипты, модули и общее состояние»); `main.js` — только состояние и запуск.
+
+## Архитектура: модули и папки — держим так
+
+Код разнесён по папкам и небольшим модулям — **это обязательная архитектура, а не разовая уборка**. Всё новое пиши так же:
+
+- **Своё место для каждой функции.** Новая возможность — свой файл в папке по смыслу (`app/` основа, `player/`, `pages/`,
+  `look/`, `library/`, `settings/`, `mobile/`, `web/`, `windows/`), а не дописка в чужой большой файл. `main.js` — только общее
+  состояние и запуск. Ядро `src/core` — только общее для всех приложений Whisper, правится отдельным коммитом в whisper-core.
+- **Размер.** Файл перерос ~500 строк JS или ~400 строк CSS, или в нём смешались разные темы — дели по разделам: рядом файлом
+  с понятным именем (`cli.js` + `cli-eggs.js`, `studio.js` + `studioshare.js` + `studioinfo.js`) или папкой с нумерацией
+  для CSS (`look/styles/`, `look/layout/`, `mobile/styles/`).
+- **Связи — через `import`/`export`** (правила — «Скрипты, модули и общее состояние»). Обратный `import` (A ↔ B) не заводи:
+  то, что модулю-помощнику нужно от главного, тот отдаёт ему функцией настройки (`shareSetup({ … })`) или объектом (`cliKit`).
+  `window` — только для обычных скриптов и `window.X` из Rust/Android/ядра; общее состояние — свойства window из main.js.
+- **CSS делится только подряд**, по границам правил: файлы подключаются в index.html в том же порядке (порядок = сила
+  правил). Переносить блок выше/ниже можно, только если у него нет общих селекторов с правилами, через которые он переносится.
+- **После переноса** — `node --check` (модуль — копией в `.mjs`), `npm run test:web`, `scripts/smoke.ps1 -Build` (все проверки ok,
+  `smoke:errors нет`), обнови index.html, описание в «Структуре» ниже и, если новый модуль экспортирует то, что проверяет
+  perf.js, — список `MODS` в нём. Новую заметную возможность — добавь проверкой в smoke (perf.js → `smoke()`).
 
 ## Запуск и сборка
 
@@ -34,15 +54,58 @@ npm run tauri build    # как в CI: с .sig для latest.json — нужен
   останавливает release-сборку, если в `src/` есть папка `target`/`node_modules` или файлов больше 100 МБ (в dev —
   предупреждение). Крейт проверки ядра `src/core/rust/check` после `cargo check` оставляет такую `target` — удаляй её.
 
-- Тестов нет — проверка руками в приложении. После правок JS достаточно перезапуска dev, после Rust — пересборка.
-- `node --check src/файл.js` — быстрая проверка синтаксиса JS.
-- CI: `.github/workflows/release.yml` (выпуски, подпись обновлений), `security.yml` (аудит зависимостей;
-  `src-tauri/deny.toml`, `.cargo/audit.toml`).
+- Проверка — три уровня (после правок — все, что задевают):
+  * `node --check src/файл.js` — синтаксис (ES-модуль — копией в `.mjs`);
+  * `scripts/smoke.ps1 -Build` — сборка и прогон в окне (WHISPER_PERF_AUTO=5, perf.js → `smoke()`): страницы, плеер,
+    меню, консоль, студия… В конце `smoke:errors нет`. Новая заметная возможность — добавь свою проверку в `smoke()`;
+  * `npm run test:web` — Playwright (tests/web): приложение само открывает браузерную версию (WHISPER_PERF_AUTO=6,
+    адрес — в файл WHISPER_WEB_URL, webmode.rs), тесты идут во вкладке Edge: запуск без ошибок, страницы, меню трека,
+    снимки настроек в 4 встроенных стилях (`tests/web/app.spec.mjs-snapshots`, обои прячутся, плеер — маской).
+    Нужна сборка (`npm run build` или smoke.ps1 -Build); запущенное приложение тест закрывает. Настройки не меняются:
+    вкладка работает с копией, а приложение закрывается, не забирая её. Вид поменялся нарочно (стиль, карточки
+    «Оформления»/«Интерфейса», свои темы в списке) — `npm run test:web:update` и посмотри новые снимки глазами.
+    Отчёт со снимками страниц — tests/web/out/report (`npx playwright show-report tests/web/out/report`).
+  После правок JS достаточно перезапуска dev, после Rust — пересборка.
+- CI: `.github/workflows/release.yml` (выпуски, подпись обновлений; job `virustotal` — .exe/.msi/.apk черновика в VirusTotal,
+  ключ — секрет `VT_API_KEY`, ссылки на отчёты дописываются в описание выпуска между `<!-- vt:start -->` и `<!-- vt:end -->`
+  вместе с предупреждением о ложных срабатываниях на неподписанный установщик; без ключа шаг пропускается),
+  `security.yml` (аудит зависимостей; `src-tauri/deny.toml`, `.cargo/audit.toml`).
 
 ## Структура
 
 ```
-src/                      фронтенд (без сборки, файлы отдаются как есть)
+src/                      фронтенд (без сборки, файлы отдаются как есть). В корне — только страницы (index.html, mini.html,
+                          notifywin.html, bridge.html, webstart.html) и favicon.png; остальное — по папкам:
+                            app/      запуск и общее: main.js (общее состояние и порядок запуска — ~90 строк), base (invoke, $, DynCss, ICON,
+                                      ym, lsJSON, safeUrl…), offline, menu (меню, тосты, modal), trackmenu (меню трека, скорость), nav
+                                      (setHead, navigate/goTop, закладки, значки «играет», трей), pins (закреплённые, колонка сбоку), list
+                                      (renderList, строки, альбомы/артисты), login (вход, «Профиль», выход), window (кнопки окна),
+                                      boot.js, lsguard.js, perf.js, imgguard.js, yandex.js
+                            player/   звук и очередь: core (play, showTrack, звуковой граф, кнопки плеера), volume (громкость, ползунки),
+                                      modes (перемешивание, повтор, следующий/предыдущий), like (лайк и «не нравится» трека), full (плеер
+                                      на весь экран, текст песни), viz (отрисовка визуализатора), sleep, eq, output, engine, sound,
+                                      devprofile, transitions, prefetch, cache, plays
+                            pages/    страницы: wave («Моя волна», станции), likes («Лайки», снимок, офлайн), playlists, search,
+                                      artist (автор и альбом), artistprefs (лайк автора, «не рекомендовать»), stats («Статистика» по лайкам
+                                      + форматы чисел), listenstats, studio(+info), pagecache
+                            look/     оформление: styles/ (01-base … 11-extras — бывший styles.css, см. «Прочее»), config (cfg, встроенные стили, applyCfg, возможности тем, вкладка «Оформление»),
+                                      colors («Тонкая настройка цветов»), bg (фон, видеообои, IDB), dynbg (динамический фон, палитра), lolitta
+                                      (украшения), theme*, themefx, themelib, themeguard, wmtworker, layout, panels, mascot, dust, imgview,
+                                      uifont, cli
+                            settings/ настройки и служебное: tabs (вкладки настроек), setpage, details, backup, hotkeys, keynav, notify,
+                                      update, traymini, tmenu, errinfo, errlog
+                            library/  свои треки и выгрузки: downloads (скачанное, «Скачать альбом/лайки», папка загрузок),
+                                      share, dropin, linkadd, linkalbum (альбом по ссылке), libsync, listexport
+                            web/      браузерная версия; windows/ — мини-плеер и окно уведомлений
+                            mobile/   телефон: mobile.js (обычный, ранний — признак isMobile, invoke, отступы, «Назад», словарь
+                                      «как на компьютере»), модули words, sections (нижняя панель, профиль, свайпы), player,
+                                      extras (тема извне, автоскачивание, старый WebView), start (запуск по DOMContentLoaded —
+                                      его зовёт mobile.js: window.mobileStart), mobilemedia (уведомление плеера Android); styles/01…06 — бывший
+                                      mobile.css по разделам (общее, списки, плеер, волна и профиль, настройки, страницы);
+                                      где в комментариях «mobile.css» — это они
+                            i18n/     i18n.js + en.js; assets/ — картинки (cover-w.svg, tray-mono.png)
+                          Ниже файлы названы без папки. Пути в JS (картинки, new Worker) — от index.html; importScripts
+                          в воркере — от файла воркера.
   core/                   ЯДРО Whisper — ПОДМОДУЛЬ git (репозиторий Whisper-Music/whisper-core, общий с Whisper VK).
                           Правки ядра — коммит в whisper-core, потом в приложении `git add src/core` (см. ниже)
   core/whisper-core.js    ядро: шина событий, сущности, провайдер и
@@ -76,12 +139,14 @@ src/                      фронтенд (без сборки, файлы от
                           i18n.js подменяет текст на экране по словарю (см. «Язык интерфейса» ниже)
   webmode.js/.css, webstate.js, webshim.js, bridge.html/js, webstart.html/js — браузерная версия (Rust — webmode.rs),
                           см. «Браузерная версия» ниже
-  main.js                 ядро: API Яндекса, плеер, страницы, списки, настройки, цвета, фон, DynCss
-  styles.css              общее оформление + встроенные стили (:root[data-style="neon|royal|steam|lolitta"])
+  main.js                 общее состояние (queue, current, audio, wave, likes, PL…) и порядок запуска; остальное — модули
+  look/styles/*.css       общее оформление + встроенные стили (:root[data-style="neon|royal|steam|lolitta"]), 20 файлов по порядку
   theme.js / theme.css    свои темы в этом приложении: загрузка, хранение, фон, сохранение в файл, карточки стилей
   wmtworker.js            разбор сохранённых тем .wmt в Web Worker (theme.js → openThemeBg → revive); не запустился —
                           разбор на странице. Воркеры — только из своих файлов (CSP worker-src 'self'), DOM и __TAURI__ им не видны
-  themelib.js/.css        «Библиотека тем» (репозиторий Whisper-Music/whisper-themes)
+  themelib.js/.css        «Библиотека тем» (репозиторий Whisper-Music/whisper-themes). Новая версия ВКЛЮЧЁННОЙ своей темы —
+                          тост «Вышла новая версия темы… · Обновить» (через 20 с после запуска и при смене стиля; index.json —
+                          не чаще раза в 6 ч; про одну версию — один раз, localStorage ym_theme_upd { id: версия })
   listexport.js           экспорт лайков и плейлистов: правый щелчок → «Экспорт» (tmenu.js → exportItem) → TXT («Исполнитель -
                           Название» — импорт Яндекса, TuneMyMusic, Soundiiz), CSV (колонки TuneMyMusic), JSON (все данные);
                           файл пишет Rust export_save (export.rs, общий с PDF статистики; заголовки x-file-name / x-file-ext)
@@ -92,7 +157,21 @@ src/                      фронтенд (без сборки, файлы от
   core/discord.js/.css    ОБЩИЙ модуль Discord Rich Presence (Rust — core/rust/discord.rs); карточку в «Интеграциях» ставит сам
   core/obs.js/.css        ОБЩИЙ виджет «Сейчас играет» для OBS (Rust — core/rust/obs.rs, страница — core/rust/obs/widget.*);
                           цвета и секции whisper-obs стиля берёт из kit.accentColors / kit.obsTheme (yandex.js)
-  cli.js                  консоль вместо интерфейса (тема с "console") + скрытые команды
+  cli.js                  консоль вместо интерфейса (тема с "console"): вывод, команды, строка состояния; cliKit — для cli-eggs.js
+  cli-eggs.js             скрытые команды консоли (visual, cat, piano, metro, party…): регистрирует их в cliKit.CMDS,
+                          живой блок и вывод берёт у cli.js; таймеры/классы, которые надо снять при выходе, — в cliKit.exit
+  palette.js/.css         (app/) командная строка, Ctrl+K: одно поле посреди экрана — страницы, действия, стили, настройки
+                          (settings/setpage.js → settingsIndex, переход — window.openSetting), команды консоли (cliKit.CMDS;
+                          выполняет cliKit.exec — вывод в окне), треки/альбомы/исполнители (cliKit.searchApi). Подсказка под
+                          полем — по введённому; недавнее — localStorage ym_palette_recent; разовый совет — ym_palette_tip.
+                          Новая заметная возможность — добавь её сюда (PAGES / ACTIONS) или командой в cli.js — так её найдут
+  welcome.js/.css         (app/) знакомство при первом запуске (стиль → вход → где темы → Ctrl+K; только новому человеку:
+                          нет ym_welcome и ym_uid; заново — window.welcomeOpen) и «Что нового»: карточка в углу после
+                          обновления (версии новее ym_seen_version), окно всей истории — window.whatsNew (версия «v1.2.5» под
+                          «Профилем» — #sideVer, скрыта в свёрнутой панели/мини-виде/на телефоне; кнопка #updHistory
+                          в «Обновлениях», пункт командной строки). Во вкладке браузерной версии само не показывается
+  changes.js              (app/) история изменений по версиям: { v, date, title?, ru: [...], en: [...] } — НОВАЯ ВЕРСИЯ =
+                          НОВАЯ ЗАПИСЬ СВЕРХУ (коротко, на «ты», про заметное человеку). Тексты двуязычные, i18n-off
   hotkeys.js/.css         ГЛОБАЛЬНЫЕ сочетания (регистрирует Rust, работают в свёрнутом окне)
   keynav.js               навигация клавиатурой ВНУТРИ окна (стрелки, Пробел, Ctrl+F, F1 — список клавиш)
   imgview.js              аватарка артиста / обложка альбома на весь экран (щелчок по #headImg)
@@ -108,10 +187,25 @@ src/                      фронтенд (без сборки, файлы от
                           трек (symphonia; Яндекс — в экономном качестве) → { dur, start, end, head_db, tail_db }; следующий
                           меряется заранее. Тишина: перемотка к start, на end — audio.onended(). Переход — множитель громкости
                           window.xfK(a) в outVol() (main.js): конец затихает до уровня начала следующего или следующий входит
-                          с уровня конца и за 2,5 с поднимается. Один плеер, без наложения. У гостя «Слушать вместе» — выключено
+                          с уровня конца и за 2,5 с поднимается. У гостя «Слушать вместе» — выключено.
+                          DJ-переход (st.dj, djLen 2–15 с): за djLen до конца звучащей части — audio.onended(), core.js play() отдаёт
+                          старый плеер в window.xfTail (доигрывает и затихает по cos, новый входит по sin). Эксклюзивный режим —
+                          смешивает engine.rs: engine_dj (второй декодер в том же потоке WASAPI, Cmd::Mix), план — xfTakeNativeDj,
+                          старый NativeAudio — _detach (больше не шлёт команд); «DJ: …» — откат на engine_load. Телевизор — без наложения.
+                          «Волна по темпу и тональности» (st.match): edges.rs заодно считает tone.rs { bpm, bpm_sure, key, minor,
+                          key_sure, camelot }; из ближайших 4 треков волны следующим ставится темп ±6 % (или ×2/½) и соседняя тональность
+                          по Camelot (Whisper.queue.move); подходящего нет — порядок волны не трогается
+  cast.js                 вывод на телевизор (DLNA/UPnP; Rust — dlna.rs, только std + md5/getrandom): карточка #castCard (Звук).
+                          window.cast.create() — плеер-пульт с интерфейсом <audio> (_native, _cast), core.js makeAudio выбирает его,
+                          пока выбран телевизор. dlna_scan (SSDP, только частные адреса, описание — с ответившего адреса),
+                          dlna_cast (трек целиком в память → HTTP-сервер на адресе интерфейса до телевизора, отвечает только
+                          телевизору, /m/<ключ 128 бит>; Range), dlna_play/pause/seek/volume/status/stop. Состояние опрашивается
+                          раз в секунду: STOPPED у конца — ended, раньше — пауза. Громкость телевизора — только за ползунком приложения
   sleep, eq, output, engine, sound — режим сна, эквалайзер, устройство вывода, свой WASAPI-движок, качество/нормализация
                           (sleep.js → window.sleepActive() → kit.sleeping: «Засыпает · …» в Discord; в комнате — «Слушает вместе · …»)
-  layout.js/.css          режимы «Расположения» (без defer), колонка и скрытие закреплённых (см. «Расположение и закреплённые»)
+  layout.js, layout/*.css режимы «Расположения» (без defer), колонка и скрытие закреплённых (см. «Расположение и закреплённые»);
+                          CSS — look/layout/01…05 (стороны, закреплённые, панели, мини-вид, время и карточка); где в
+                          комментариях «layout.css» — это они
   mascot, listenstats, traymini, update, imgguard — маскот, статистика, трей, автообновление, заглушки картинок
   plays.js                отчёты Яндексу о прослушиваниях (/play-audio, op play_audio, uid подставляет Rust) — при ЛЮБОМ
                           источнике звука (Яндекс, архив, скачанный, «Слушать вместе»), чтобы автор получал своё;
@@ -135,6 +229,19 @@ src/                      фронтенд (без сборки, файлы от
                           Настоящая загрузка: cargo test --lib linkdl::tests::real_download -- --ignored --nocapture
                           Ссылка едет с файлом (entry.link) → drop_audio_local(link) → Item.source { site, url, id }
                           (linkdl::source_info: youtube | soundcloud | vk-video; без ссылки — «file»)
+  linkalbum.js/.css       альбом по ссылке (Rust — linkset.rs + m4acut.rs). linkadd.js перед скачиванием зовёт routeLink(chk):
+                          link_check отдаёт и плейлист (chk.list: YouTube ?list=, кроме миксов RD… и личных WL/LL/LM;
+                          SoundCloud автор/sets/…) → «только этот трек / весь плейлист»; link_probe (yt-dlp -J, без скачивания)
+                          → длина, главы, треки, music/why (категория YouTube, « - Topic», слова в названии) → «Похоже, это не
+                          музыка — всё равно скачать?». Длиннее 20 мин или с главами → «Разделить на треки / Одним треком»
+                          (одним — до часа): link_download_long (Mode::Long: до 4 ч, 400 МБ, token — папка в кэше linkdl),
+                          главы, а без них — link_silences (edges::windows_of, паузы ≥0,8 с на 25 дБ тише записи, куски ≥40 с);
+                          окно: начало/название/галочка у каждого трека, «+ Добавить трек»; link_split режет без перекодирования
+                          (m4a — m4acut.rs: кадры AAC в новый MP4 ftyp+moov+mdat; mp3 — studio::mp3_cut) → bg::remember_files.
+                          Плейлист: выбор ≤50 → link_download_list (Mode::List, «--playlist-items 1,3»; недоступные пропускаются).
+                          Сохранение — как у перетащенного файла: «Новый альбом в Whisper Archive» (drop_audio_archive, первый
+                          создаёт альбом, остальные — в него; при лимите архива ждёт минуту) или «Все в «Лайки»»
+                          (drop_audio_local с альбомом в meta). После нарезки — link_forget(token)
   libsync.js              синхронизация своих треков (всё из студии: по ссылке, свои файлы, обрезки, замены) через
                           Whisper Archive — на телефоне и другом ПК те же треки на тех же местах в «Лайках» (likedAt).
                           Сервер — /api/library/{service} (service = "yandex"; описание — docs/LIBRARY-SYNC.md в репозитории
@@ -186,7 +293,9 @@ src/                      фронтенд (без сборки, файлы от
                           whisper://wa/{альбом}?k=… (deeplink.rs) → share.js → studioOpenShared → wa_invite_open (ядро: лайк альбома
                           с cookie приглашения = доступ для ключа). Такие треки в плеере — «wa-<трек архива>» с waShared
                           (main.js isShared: без лайка, плейлистов, скачивания; в комнату не раздаются)
-  studioinfo.js           сводка о треке в студии по звуку: window.studioAnalyze(AudioBuffer) → темп (BPM, автокорреляция
+  studioshare.js          «Поделиться через архив» и открытие версии по ссылке (window.studioOpenShared); от studio.js
+                          получает toRaw/stopPreview через shareSetup (без обратного import)
+  studioinfo.js           сводка о треке в студии (loadInfo / paintInfo — карточка #stuInfo) и по звуку: studioAnalyze(AudioBuffer) → темп (BPM, автокорреляция
                           огибающей атак), тональность (хрома + профили Крумхансла), громкость (RMS, пик); формат файла —
                           studio_info (studio.rs: кодек, битрейт, VBR, частота, каналы, размер, с диска или с Яндекса)
   dropin.js/.css          перетаскивание в окно на ЛЮБОЙ странице (bg.rs → main.js bg-drop: .wmt → theme.js, трек → dropin.js,
@@ -245,28 +354,51 @@ connect-src 'self' ipc: http://ipc.localhost; font-src 'self' data: blob:`.
 - Страница **сама в сеть не ходит** (`connect-src` — только IPC). Все запросы — через Rust-команды (`invoke("ym_read", …)` и т. п.).
   Картинки — только с доменов Яндекса (`safeUrl()` в main.js).
 
-### Скрипты и глобальные переменные
-- Все `.js` — классические скрипты с `defer` в `<head>` (кроме `boot.js` и `layout.js`). Порядок = порядок в index.html.
-- Верхнеуровневые `let/const/function` из `main.js` видны модулям, подключённым после него (общая глобальная
-  лексическая область): `queue`, `current`, `audio`, `volume`, `needLoad`, `cfg`, `togglePlay()`, `setVol()`,
-  `toggleLike()`, `navigate()`, `goTop()`, `showToast()`, `tmenu`, `openMenu()`, `closeTrackMenu()`, `invoke()`, `$()`.
-  Модули обычно объявляют свои помощники (`$k`, `$w`, `$h`) внутри IIFE, чтобы не конфликтовать с `$`.
-- Новый модуль: `<script src="x.js" defer></script>` в нужное место index.html (после main.js),
-  CSS — `<link rel="stylesheet">` там же или правилами в styles.css.
+### Скрипты, модули и общее состояние
+- Почти все `.js` приложения — **ES-модули** (`<script type="module">` в `<head>`), сборщика нет: браузер грузит файлы как есть.
+  **Обычными скриптами остались** (их порядок важен, `import` им недоступен): ранние без defer — `app/boot.js`, `mobile/mobile.js`,
+  `app/lsguard.js`, `settings/errlog.js`, `app/perf.js`, `i18n/en.js`, `i18n/i18n.js`, `look/layout.js`; с defer — всё ядро `core/*.js`
+  и `web/webstate.js` (он же в bridge.html/webstart.html); отдельные окна — `windows/mini.js`, `notifywin.js`.
+- **Общей глобальной области больше нет.** Раньше все `.js` были классическими скриптами и видели верхние `let/const/function`
+  друг друга по имени — теперь нет: верхние имена модуля видны только ему самому. Функция или `const` из другого файла —
+  **только через `import`**; без него будет ReferenceError (часто — уже в работе, при первом вызове). Без `import` и без
+  `window.` по имени доступны лишь свойства `window`: общее состояние из `app/main.js` и то, что модуль отдал через
+  `Object.assign(window, …)` для обычных скриптов. Где ниже в описаниях написано «main.js → функция», функция теперь в одном
+  из модулей `app/`, `player/`, `pages/`, `look/`, `library/`, `settings/` — ищи её по `export { … имя … }`.
+- **Между модулями — `import`/`export`.** Модуль в конце пишет `export { … };`, кто пользуется — `import { … } from "../app/base.js";`
+  (путь относительно файла, с `.js`). Импортированное имя только читается: присвоить ему нельзя — для этого у модуля-хозяина функция.
+- **`window` — только для обычных скриптов.** Имена, которые берут layout.js, ядро, boot.js или код вида `window.X`, модуль
+  дополнительно отдаёт строкой `Object.assign(window, { … })` (рядом с export, с комментарием, кому). Новое имя туда — только если
+  его правда зовёт обычный скрипт. `perf.js` берёт функции модулей через `import()` (список `MODS` в нём — новый модуль добавь туда).
+- **Общее состояние — свойства window**, заводятся в `app/main.js`: `window.queue = []`, `window.current = -1`… Все (модули и обычные
+  скрипты) читают и пишут их просто по имени — `queue`, `current`, `audio`, `wave`, `cfg`… Новую общую переменную заводи там так же;
+  своя переменная модуля, которую пишут снаружи, — тоже свойство window (`window.speed = …`) или сеттер (`fullPeek`, `bgUnload`).
+- **Порядок выполнения.** Модули выполняются после обычных defer-скриптов перед ними, а между собой — по графу import: модуль, который
+  импортируют, выполнится раньше. main.js импортирует почти всё, поэтому его тело (состояние и запуск) идёт ПОСЛЕ модулей. Отсюда
+  правила: при загрузке модуль только объявляет своё и вешает обработчики; состояние main.js и чужие `const`/`let` — только внутри
+  функций (чужие `function` при загрузке звать можно — они готовы сразу, `const` до выполнения хозяина бросит ReferenceError);
+  что нужно сделать при запуске с готовым состоянием — в main.js, внизу.
+- Код модуля — строгий режим: присвоить необъявленному имени нельзя (только свойствам window из main.js).
+- Новый модуль: `<папка>/x.js` с `export`, `<script type="module" src="<папка>/x.js"></script>` в index.html (перед main.js — если
+  не импортируется никем; импортируемому строка не обязательна, но пусть будет — так видно все модули), CSS — `<link>` там же или
+  файлом в `look/styles/`. Проверка — `node --check` (для модуля — скопируй в `.mjs`) и `scripts/smoke.ps1 -Build`
+  (WHISPER_PERF_AUTO=5: perf.js открывает страницы и выписывает ошибки из журнала).
 
 ### Ядро Whisper (`core/whisper-core.js`, src/core/docs/CORE.md)
 - `src/core` — **подмодуль** (whisper-core): после `git pull` приложения — `git submodule update --init`. Правишь файл в
   `src/core` → это правка ядра для ВСЕХ приложений: коммит и push внутри `src/core` (репозиторий whisper-core), затем в
   приложении `git add src/core && git commit` (приложение запоминает версию ядра). Взять свежее ядро —
   `git submodule update --remote src/core`. Ничего про Яндекс в `src/core` не клади — для этого `yandex.js`, `whisper_*.rs`.
-- Порядок скриптов: `core/whisper-core.js` → `main.js` → `yandex.js` → остальные (theme.js — после yandex.js: роли нужны при запуске;
-  перед ним `core/wmt.js` и `core/theme-css.js`).
+- Порядок: ядро (`core/*.js` — обычные defer-скрипты) выполняется раньше модулей, которые стоят после него в index.html; модули
+  между собой — по графу import (см. «Скрипты, модули и общее состояние»). `look/theme.js` стоит после `app/yandex.js` (роли нужны
+  при запуске), перед ним — `core/wmt.js` и `core/theme-css.js`.
 - Ядро **не знает** о Яндексе и разметке — ничего специфичного туда не клади: оно копируется в другие приложения (Whisper VK).
-- `main.js` сообщает ядру о плеере через `wReport({ track | playing | volume | liked | disliked | seek | rate | modes | queue | started })` —
-  в `showTrack` (в конце), `syncIcons`, `setVol`, `setSpeed`, `updateModes`, `refreshHearts`, `onseeked`, при дозагрузке волны,
-  `started` — в `play()` при включении трека (история); правки очереди в `yandex.js` — `report({ queue: true })`.
+- Плеер сообщает ядру о себе через `wReport({ track | playing | volume | liked | disliked | seek | rate | modes | queue | started })`
+  (`app/base.js`) — в `showTrack` (в конце) и `play()` (`started`, история) — `player/core.js`, `syncIcons` — `app/nav.js`,
+  `setVol` — `player/volume.js`, `setSpeed` — `app/trackmenu.js`, `updateModes` — `player/modes.js`, `refreshHearts` —
+  `player/like.js`, при дозагрузке волны — `pages/wave.js`; правки очереди в `yandex.js` — `report({ queue: true })`.
 - Источник звука вместо сервиса — `Whisper.sources.register(...)`; play() спрашивает `Whisper.sources.resolve` и шлёт
-  `wReport({ source })`. Пункт в меню «⋯» от модуля — `Whisper.ui.trackMenu.add(...)` (main.js зовёт `trackMenu.build`).
+  `wReport({ source })`. Пункт в меню «⋯» от модуля — `Whisper.ui.trackMenu.add(...)` (`app/trackmenu.js` зовёт `trackMenu.build`).
 - Общие модули (`src/core/*`) не трогают переменные main.js: всё нужное — через `Whisper.*`, роли и `Whisper.ui.kit`.
   Не хватает возможности — добавь её в ядро (и привязку в `yandex.js`), а не обращайся к main.js напрямую.
   Новое место, где меняется трек/состояние/очередь, — добавь `wReport`.
@@ -289,9 +421,9 @@ connect-src 'self' ipc: http://ipc.localhost; font-src 'self' data: blob:`.
 4. `src-tauri/capabilities/default.json` (или нужный файл) — `"allow-имя"` (дефисы вместо `_`).
 5. Новая библиотека — `Cargo.toml` с комментарием «зачем» (так оформлены все зависимости).
 
-Вызов из JS: `await invoke("имя", { аргументы })` (обёртка в main.js) или `window.__TAURI__.core.invoke`.
+Вызов из JS: `await invoke("имя", { аргументы })` (обёртка — `import { invoke } from "../app/base.js"`) или `window.__TAURI__.core.invoke`.
 
-### Страницы и шапка (main.js)
+### Страницы и шапка (`app/nav.js`, `app/list.js`, `app/offline.js` — брать через import)
 - Навигация: `navigate(fn)` — с историей «Назад», `goTop(fn)` — раздел из бокового меню. Защита от гонок: `const my = ++nav; … if (my !== nav) return;`.
 - `setHead({ title, img, round, back, pin, artistWave, sub })` — шапка страницы; `resetView()` прячет всё страничное.
 - `renderList(tracks, append, opts)` — строки треков `#list li` (`.t`, `.a`, `.likebtn`, `.morebtn`, `li.playing`).
@@ -340,7 +472,7 @@ connect-src 'self' ipc: http://ipc.localhost; font-src 'self' data: blob:`.
 - Настройки оформления — `cfg` (localStorage `ym_cfg3`, `saveCfg()`, `applyCfg()`, `syncControls()`), значения стиля — `cfg.s[стиль]`.
   Отдельные модули хранят своё под своими ключами (`ym_font`, `ym_hotkeys`, …).
 
-### Расположение и закреплённые (`layout.js` / `layout.css`)
+### Расположение и закреплённые (`layout.js` / `look/layout/*.css`)
 - Режимы — атрибуты на `<html>`, хранятся в localStorage `ym_layout`: `data-ly-side` (left|right), `data-ly-sb` (full|mini),
   `data-ly-pl` (full|mini), `data-ly-time` (always|hover), `data-ly-pins` (top|side), `data-ly-pinhide` (off|on),
   `data-ly-ui` (normal|super — мини-вид: боковая — плавающая колонка значков, плеер — плитка с обложкой + «таблетка»,
@@ -371,7 +503,7 @@ connect-src 'self' ipc: http://ipc.localhost; font-src 'self' data: blob:`.
   значение-функция (может вернуть `null` = «не переводить»). Короткие шаблоны («{} с», «{} из {}») — через `num(…)`: только
   для чисел, иначе ловят названия треков. `«{}»` в кавычках не переводится (это название). Склонения — `pl(one, many)`.
 - **Новая строка интерфейса → добавь перевод в en.js.** Проверка: `node scripts/i18n-check.mjs` (без перевода; `--all` — все).
-  Не переводятся: cli.js, core/wmt.js, синонимы поиска setpage.js, подсказки ролей ядра (для авторов тем).
+  Не переводятся: cli.js, cli-eggs.js, core/wmt.js, синонимы поиска setpage.js, подсказки ролей ядра (для авторов тем).
 - Не сравнивай `textContent` с русским текстом — на экране он может быть английским (пример — `isNothingFound` в main.js).
 - Не переводятся (SKIP в i18n.js): строки треков `.list li .t/.a`, очередь, текст песни, поля ввода, `[data-noi18n]`, консоль.
 - Текст не в разметке (трей, уведомления системы, холст) — `window.i18n.t("…")`; язык — `i18n.lang`, смена — `i18n.on(fn)`.
@@ -399,7 +531,8 @@ connect-src 'self' ipc: http://ipc.localhost; font-src 'self' data: blob:`.
 
 ### Клавиатура
 - Глобальные сочетания (Ctrl+Alt+…) — `hotkeys.js` + `hotkeys.rs`. Внутри окна — `keynav.js`; занятые клавиши:
-  стрелки, Enter, Home/End/PgUp/PgDn, Пробел, Ctrl+←/→/↑/↓, Shift+←/→, M, L, Ctrl+F, Alt+←/Backspace, F1, Menu/Shift+F10;
+  стрелки, Enter, Home/End/PgUp/PgDn, Пробел, Ctrl+←/→/↑/↓, Shift+←/→, M, L, Ctrl+F, Ctrl+K (командная строка, app/palette.js),
+  Alt+←/Backspace, F1, Menu/Shift+F10;
   Q — очередь (core/queue.js), F — визуализатор на весь экран (main.js), Ctrl+Shift+Backspace — аварийный сброс стиля (theme.js).
 - Обработчики клавиш не срабатывают в полях ввода (`input, textarea, [contenteditable]`) и при открытом `.modal`.
 
@@ -422,13 +555,26 @@ connect-src 'self' ipc: http://ipc.localhost; font-src 'self' data: blob:`.
 - **Видеообои**: ошибки `#bgVideo` после добавления (не декодируется, не открылось за 12 с) показываются в `#setNote`/тосте.
 
 ### Прочее
+- Бывший `styles.css` — `src/look/styles/01-base.css … 11-extras.css`, подключены в index.html строго по номерам: это тот же
+  файл, нарезанный по темам, порядок = сила правил (04a/04b, 09a…09i — бывшие смешанные 04 и 09: перенесённые блоки не
+  пересекаются по селекторам с теми, через которые перенесены, поэтому вид не изменился). Новое правило — в файл по теме (стиль Неон — 03-neon.css,
+  Стимпанк — 06-steam.css, Lolitta — 07-lolitta.css, Королевский — 02-royal.css / 05-royal-anim.css, остальное — по шапке
+  файла); новый файл — со следующим номером или буквой (09j-…), строка `<link>` — на его место в index.html. Там, где ниже написано «styles.css», имеются в виду эти файлы.
 - Параметры WebView2 — одни на все окна, через переменную `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` (lib.rs → `webview_args()`,
   до Builder): там повторён список Tauri (`msWebOOUI,msPdfOOUI,msSmartScreenProtection`) + `AudioServiceOutOfProcess` — звук
   играет браузерный процесс WebView2 (потомок приложения), иначе «Захват звука приложения» в OBS слышит тишину.
   И `--disable-gpu-rasterization`: содержимое рисует процессор, кадр собирает видеокарта — первый кадр интерфейса
   при запуске на ~0,6 с раньше (видеокарта долго готовилась рисовать содержимое), процессор во время игры не дороже.
   Кроме тем с курсором (`--mx`/`--my`/`--mpx`/`--mpy`): параллакс так дёргается, поэтому themefx.js → `gpu_raster(on)` (shell.rs)
-  ставит метку `%APPDATA%\ya\gpu-raster`, и со следующего запуска флага нет; ответ true — «Перезапусти приложение».
+  ставит метку `%APPDATA%\ya\gpu-raster`, и со следующего запуска флага нет. Метка НЕ снимается при смене темы: кто хоть раз
+  включил параллакс-тему, тот дальше всегда запускается с видеокартой (иначе тема, включённая не при запуске, лагала).
+  Ответ true — тост с кнопкой «Перезапустить» → `gpu_raster({ on, restart: true })` → app.restart(); перед этим страница
+  сохраняет ym_last и ym_gpu_resume (играло — core.js restorePlayer продолжит воспроизведение).
+- Трек из поиска (pages/search.js → playSearchTrack) играет один, `playCtx = "search"`, `playAlbum = { id, title, track: true }`;
+  когда кончится — wave.js onQueueEnd включает «Мою волну по треку» (seed `track:<id>`), как «по альбому» после альбома.
+- Свои полосы прокрутки стили и темы задают только `.main::-webkit-scrollbar-*`. Горизонтальная лента «Открывал» в истории
+  поиска (`.spicks`) копирует эти правила себе (search.js → spicksScrollbar, DynCss «spicksScroll»; ширина → высота).
+  `scrollbar-width` на таких элементах не ставь: с ним Chromium игнорирует `::-webkit-scrollbar`.
 - Запуск: окно показывается сразу — boot.js первым же скриптом зовёт `app_ready({ bg })` с цветом шторки (winstate.rs ставит
   его фоном движка, чтобы не мелькнул белый), интерфейс под шторкой проявляется, когда стиль готов. Свои темы при запуске —
   только текущая, остальные подключаются потом (theme.js). Трей: рисование стоит сразу, а память и кэши отдаются через

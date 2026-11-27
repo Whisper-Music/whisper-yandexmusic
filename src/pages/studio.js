@@ -3,13 +3,21 @@
 // по нему рисуется волна и слушается отрезок (Web Audio, отдельно от плеера). Сохранённая версия — mp3 на диске
 // с номером «studio-…»: плеер играет её как скачанный трек, лайк у неё локальный (main.js → isLiked / toggleLike),
 // в архив она уходит своим файлом (yandex.js → archiveSave → studio_to_archive), а «Поделиться» кладёт её
-// в отдельный приватный альбом архива и копирует ссылку-приглашение.
+// в отдельный приватный альбом архива и копирует ссылку-приглашение (studioshare.js). Сводка о треке — studioinfo.js.
+import { $, COVER_W, ICON, invoke, lsJSON, mkImg } from "../app/base.js";
+import { cover } from "../app/list.js";
+import { modal, showToast, toast } from "../app/menu.js";
+import { goTop, renderTabs, resetView, setActive, setHead } from "../app/nav.js";
+import { openTrackMenu } from "../app/trackmenu.js";
+import { likesStudioChanged } from "./likes.js";
+import { isStudio, refreshHearts, setHeart } from "../player/like.js";
+import { loadInfo, paintInfo } from "./studioinfo.js";
+import { saveShared, share, shareSetup, sharedAll, sharing } from "./studioshare.js";
 (() => {
   const $s = (id) => document.getElementById(id);
   const page = $s("studioPage");
   if (!page) return;
   const W = window.Whisper;
-  const SHARED_KEY = "ym_studio_shared";            // id версии → { album, url }: второй раз не загружаем
   const MIN_LEN = 1;                                // секунды; столько же проверяет Rust
   const ICO = {
     cut: '<svg viewBox="0 0 24 24" width="18" height="18"><circle cx="6" cy="6" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.6 7.6 20 18M8.6 16.4 20 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
@@ -141,7 +149,7 @@
       ed.buf = buf; ed.dur = buf.duration; ed.peaks = peaksOf(buf, 1200); ed.loading = false;
       ed.a = Math.min(at, Math.max(0, buf.duration - MIN_LEN));
       ed.b = Math.min(buf.duration, ed.a + 30);
-      loadInfo(my);
+      loadInfo(ed, () => my === loadSeq);
     } catch (e) {
       if (my !== loadSeq) return;
       ed.loading = false; ed.error = "Не удалось загрузить трек: " + err(e);
@@ -149,76 +157,6 @@
     paintEditor(); draw();
   }
 
-  // ---------- сводка о треке ----------
-  // Файл (формат, битрейт, частота, каналы, откуда взят) — studio_info (Rust, по тому же файлу, что в памяти);
-  // по звуку — темп, тональность, громкость (studioinfo.js, считает здесь, ~0,5 с — после отрисовки волны);
-  // остальное — из описания трека Яндекса (альбом, год, жанр, лейбл).
-  async function loadInfo(my) {
-    ed.info = { file: null, sound: null };
-    paintInfo();
-    invoke("studio_info", { trackId: String(ed.t.id) })
-      .then((f) => { if (my === loadSeq && ed) { ed.info.file = f; paintInfo(); } })
-      .catch(() => {});
-    setTimeout(() => {
-      if (my !== loadSeq || !ed?.buf || !window.studioAnalyze) return;
-      const s = window.studioAnalyze(ed.buf);
-      if (my === loadSeq && ed) { ed.info.sound = s; paintInfo(); }
-    }, 60);
-  }
-  const num1 = (v, d = 1) => (Math.round(v * 10 ** d) / 10 ** d).toString().replace(".", ",").replace("-", "−");
-  const tempoWord = (b) => (b < 66 ? "медленно — ларго, адажио" : b < 76 ? "неспешно — адажио" : b < 108 ? "умеренно — анданте, модерато"
-    : b < 120 ? "оживлённо — аллегретто" : b < 156 ? "быстро — аллегро" : b < 176 ? "очень быстро — виваче" : "стремительно — престо");
-  const sureWord = (s) => (s >= 0.6 ? "" : s >= 0.3 ? "примерно" : "оценка неуверенная");
-  const mb = (n) => (n >= 1024 * 1024 ? num1(n / 1024 / 1024) + " МБ" : Math.round(n / 1024) + " КБ");
-  const MODE = { stereo: "стерео", joint: "стерео (joint stereo)", dual: "два моно-канала", mono: "моно" };
-  function paintInfo() {
-    const box = $s("stuInfo");
-    if (!box) return;
-    if (!ed?.buf) { box.hidden = true; return; }
-    box.hidden = false;
-    const t = ed.t, al = t.albums?.[0] || {}, f = ed.info?.file, s = ed.info?.sound;
-    const wait = "считаю…";
-    const rows = [];
-    const add = (label, value, sub = "", title = "") => rows.push({ label, value, sub, title });
-    // по звуку
-    if (!s) add("Темп", wait);
-    else if (s.bpm) add("Темп", `${num1(s.bpm, s.bpm % 1 ? 1 : 0)} BPM`, [tempoWord(s.bpm), sureWord(s.bpmSure)].filter(Boolean).join(" · "),
-      "Оценка по ударам в середине трека. Бывает, что верный темп — вдвое меньше или больше");
-    else add("Темп", "—", "не удалось определить");
-    if (!s) add("Тональность", wait);
-    else if (s.key) add("Тональность", s.key, [s.keyShort, sureWord(s.keySure)].filter(Boolean).join(" · "),
-      "Оценка по нотам за весь трек (профили Крумхансла). У модальной и атональной музыки может ошибаться");
-    else add("Тональность", "—", "не удалось определить");
-    if (s && s.rmsDb != null && isFinite(s.rmsDb)) add("Громкость", `${num1(s.rmsDb)} дБ RMS`, `пик ${num1(s.peakDb)} дБFS`,
-      "Средняя громкость (RMS) и самый громкий момент относительно максимума");
-    add("Длительность", fmt(ed.dur, false), f ? `${f.frames.toLocaleString("ru-RU")} кадров mp3` : "");
-    // файл
-    if (f) {
-      add("Формат", "MP3", f.codec);
-      add("Битрейт", `${f.bitrate} кбит/с`, f.vbr ? "переменный (VBR)" : "постоянный (CBR)");
-      add("Частота", `${num1(f.sampleRate / 1000)} кГц`, MODE[f.mode] || (f.channels === 1 ? "моно" : "стерео"));
-      add("Размер", mb(f.size), f.fromDisk ? "файл с диска (скачан или в кэше)" : "файл с Яндекс Музыки");
-    } else add("Формат", wait);
-    // описание трека
-    if (al.title) add("Альбом", al.title, [al.year, al.type === "single" ? "сингл" : ""].filter(Boolean).join(" · "));
-    if (al.genre) add("Жанр", String(al.genre));
-    const label = (al.labels || []).map((x) => (typeof x === "string" ? x : x?.name)).filter(Boolean)[0];
-    if (label) add("Лейбл", label);
-    if (t.version) add("Версия", t.version);
-    if (t.contentWarning === "explicit") add("Текст", "18+", "есть ненормативная лексика");
-    box.textContent = "";
-    for (const r of rows) {
-      const cell = document.createElement("div");
-      cell.className = "stuinfo-i";
-      if (r.title) cell.title = r.title;
-      const dt = document.createElement("dt"); dt.textContent = r.label;
-      const dd = document.createElement("dd"); dd.textContent = r.value;
-      if (r.value === wait) dd.classList.add("wait");
-      cell.append(dt, dd);
-      if (r.sub) { const sm = document.createElement("small"); sm.textContent = r.sub; cell.append(sm); }
-      box.append(cell);
-    }
-  }
   function peaksOf(buf, n) {
     const out = new Float32Array(n), chs = Math.min(2, buf.numberOfChannels), len = buf.length;
     const step = Math.max(1, Math.floor(len / n / 64));       // не каждую выборку: на волну хватает и так
@@ -302,7 +240,7 @@
       $s("stuName").value = `${t.title || "Трек"} (обрезка)`; $s("stuName").dataset.for = String(t.id);
     }
     paintPlayBtn();
-    paintInfo();
+    paintInfo(ed);
   }
 
   // перетаскивание: ближняя граница едет за курсором, щелчок мимо — переносит ближнюю границу туда
@@ -503,124 +441,6 @@
     catch (e) { toast("Не удалось сохранить файл: " + err(e), 5000); }
   }
 
-  // ---------- поделиться через архив ----------
-  // Версия загружается в свой приватный альбом (название — как у версии, обложка — от исходного трека),
-  // сервер выдаёт ссылку-приглашение на него. Слушать по ссылке можно в браузере и в Whisper.
-  const sharedAll = () => lsJSON(SHARED_KEY, {}, (v) => v && typeof v === "object" && !Array.isArray(v));
-  const saveShared = (v) => { try { localStorage.setItem(SHARED_KEY, JSON.stringify(v)); } catch {} };
-  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const sharing = new Set();
-  const copyText = async (text) => {
-    try { await navigator.clipboard.writeText(text); return true; }
-    catch {
-      const ta = document.createElement("textarea");
-      ta.value = text; ta.setAttribute("readonly", "");
-      ta.style.position = "fixed"; ta.style.opacity = "0"; ta.style.pointerEvents = "none";
-      document.body.append(ta); ta.select();
-      let ok = false; try { ok = document.execCommand("copy"); } catch {}
-      ta.remove(); return ok;
-    }
-  };
-  const bodyOf = (r) => { try { return r?.body ? JSON.parse(r.body) : null; } catch { return null; } };
-  const httpErr = (r, what) => {
-    const b = bodyOf(r), m = b?.message || b?.error || b?.title;
-    if (r.status === 401 || r.status === 403) return "архив не принял вход — войди заново (Настройки → Интеграции)";
-    return `${what}: сервер ответил ${r.status}${m ? " — " + String(m).slice(0, 160) : ""}`;
-  };
-  async function share(it) {
-    if (sharing.has(it.id)) return;
-    let token = false;
-    try { token = await invoke("wa_token_exists"); } catch {}
-    if (!token) { toast("Чтобы делиться версиями, войди в Whisper Archive: Настройки → Интеграции", 6000); return; }
-    sharing.add(it.id);
-    toast("Готовлю ссылку…", 2500);
-    try {
-      const sh = sharedAll();
-      let album = UUID.test(sh[it.id]?.album || "") ? sh[it.id].album : "";
-      if (!album) {
-        const raw = toRaw(it);
-        const args = { fileName: it.title, albumId: null, albumTitle: it.title.slice(0, 75), coverUrl: null, coverBytes: null };
-        const cu = W.cover(W.to("track", raw), 800);
-        if (cu) args.coverUrl = cu;
-        else args.coverBytes = await plainCover(it.title);
-        const r = await invoke("studio_to_archive", { id: it.id, ...args });
-        if (r.status < 200 || r.status >= 300) throw new Error(httpErr(r, "Не удалось загрузить в архив"));
-        const b = bodyOf(r);
-        album = String(b?.id ?? b?.albumId ?? b?.album?.id ?? "");
-        if (!UUID.test(album)) throw new Error("архив не вернул номер альбома");
-        sh[it.id] = { album }; saveShared(sh);
-      }
-      const r = await invoke("wa_album_share", { id: album });
-      if (r.status === 404) { const s2 = sharedAll(); delete s2[it.id]; saveShared(s2); throw new Error("альбом этой версии в архиве удалён — нажми «Поделиться» ещё раз"); }
-      if (r.status < 200 || r.status >= 300) throw new Error(httpErr(r, "Не удалось получить ссылку"));
-      let url = String(bodyOf(r)?.url || "");
-      if (!/^https:\/\//.test(url)) throw new Error("архив не вернул ссылку");
-      // приглашение ведёт не на страницу альбома, а на выбор «слушать в приложении / на сайте» (share.html, /s/v/…)
-      if (/\/invite\/[A-Za-z0-9_-]+$/.test(url)) url += "?to=version";
-      const s3 = sharedAll(); s3[it.id] = { album }; saveShared(s3);      // ссылку (в ней ключ) не храним — сервер выдаст ту же
-      if (await copyText(url)) toast("Ссылка на версию скопирована — отправь её другу", 4000, { kind: "ok" });
-      else toast(url, 10000);
-    } catch (e) { toast("Не получилось поделиться: " + err(e), 7000); }
-    sharing.delete(it.id);
-  }
-  // ---------- открыть версию, которой поделились (ссылка whisper://wa/… или /s/v/… → share.js) ----------
-  // Ключ приглашения отдаётся архиву один раз (wa_invite_open): сервер запоминает доступ для твоего ключа (лайк альбома),
-  // дальше трек играет из архива как обычно (core/archive.js, waShared). Номер в плеере — «wa-<трек>»: это не трек
-  // Яндекса (main.js: без лайка, «Не нравится», плейлистов и скачивания).
-  const durSec = (v) => {
-    if (typeof v === "number" && isFinite(v)) return v > 36000 ? v / 1000 : v;
-    const m = /^(?:(\d+)\.)?(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?$/.exec(String(v || ""));
-    return m ? (+(m[1] || 0)) * 86400 + (+m[2]) * 3600 + (+m[3]) * 60 + (+m[4]) : 0;
-  };
-  let openingShared = 0;
-  window.studioOpenShared = async (albumId, key) => {
-    if (!UUID.test(String(albumId || "")) || !/^[A-Za-z0-9_-]{20,200}$/.test(String(key || ""))) return;
-    const my = ++openingShared;
-    let token = false;
-    try { token = await invoke("wa_token_exists"); } catch {}
-    if (!token) {
-      toast("Чтобы слушать версию в приложении, войди в Whisper Archive: Настройки → Интеграции. Или открой ссылку в браузере", 8000);
-      return;
-    }
-    toast("Открываю версию…", 2000);
-    try {
-      const r = await invoke("wa_invite_open", { id: albumId, key });
-      if (my !== openingShared) return;
-      if (r.status === 404 || r.status === 403) throw new Error("ссылка устарела или её отозвали — попроси прислать новую");
-      if (r.status < 200 || r.status >= 300) throw new Error(httpErr(r, "архив не открыл версию"));
-      const a = bodyOf(r) || {};
-      const list = (Array.isArray(a.tracks) ? a.tracks : []).filter((x) => UUID.test(String(x?.id || "")));
-      if (!list.length) throw new Error("в альбоме версии нет треков");
-      const author = String(a.author || "").slice(0, 120);
-      const raws = list.map((x) => ({
-        id: "wa-" + String(x.id).toLowerCase(),
-        title: String(x.title || a.title || "Версия").slice(0, 200),
-        artists: author ? [{ name: author }] : [],
-        durationMs: Math.round(durSec(x.duration) * 1000),
-        waShared: String(x.id).toLowerCase(),                 // core/archive.js: играет файл архива по этому номеру
-        waAlbum: albumId,
-      }));
-      stopPreview();
-      W.queue.play(raws, 0);
-      toast(author ? `«${raws[0].title}» от ${author} — играет из Whisper Archive` : `«${raws[0].title}» — играет из Whisper Archive`, 4000, { kind: "ok" });
-    } catch (e) { if (my === openingShared) toast("Не удалось открыть версию: " + err(e), 7000); }
-  };
-
-  // обложка для альбома, если у исходного трека её нет: заливка цветами стиля с названием
-  async function plainCover(title) {
-    const S = 600, c = document.createElement("canvas"); c.width = c.height = S;
-    const g = c.getContext("2d"), cs = getComputedStyle(document.documentElement);
-    const gr = g.createLinearGradient(0, 0, S, S);
-    gr.addColorStop(0, cs.getPropertyValue("--accent").trim() || "#a66bff"); gr.addColorStop(1, cs.getPropertyValue("--accent2").trim() || "#e060ff");
-    g.fillStyle = gr; g.fillRect(0, 0, S, S);
-    g.fillStyle = "#fff"; g.font = "600 40px system-ui, sans-serif"; g.textBaseline = "middle";
-    let t = String(title || "Версия");
-    while (t.length > 1 && g.measureText(t).width > S - 80) t = t.slice(0, -2).trimEnd() + "…";
-    g.fillText(t, 40, S * 0.83);
-    const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.9));
-    return blob ? Array.from(new Uint8Array(await blob.arrayBuffer())) : null;
-  }
-
   // ---------- меню «⋯» ----------
   W?.ui.trackMenu.add({
     id: "studio",
@@ -648,6 +468,7 @@
   window.addEventListener("resize", () => { if (!page.hidden) draw(); });
   // стиль сменился (цвета волны берутся из --accent / --muted)
   new MutationObserver(() => { if (!page.hidden) draw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-style"] });
+  shareSetup({ toRaw, stopPreview });     // studioshare.js: версия → трек и остановка прослушивания
   applyOn();
   loadItems();
 })();

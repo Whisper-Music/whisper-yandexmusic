@@ -119,3 +119,6 @@ function imageGuard(b, limits = IMG_LIMITS) {
   return { type, ext, w, h, frames };
 }
 if (typeof module !== "undefined") module.exports = { imageGuard, IMG_LIMITS };
+// в окне — ES-модуль: отдать bg.js, playlists.js, theme.js
+if (typeof window !== "undefined") Object.assign(window, { imageGuard, IMG_LIMITS });
+export { imageGuard, IMG_LIMITS };

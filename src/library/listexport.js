@@ -1,3 +1,7 @@
+import { plural } from "../app/list.js";
+import { hideToast, showToast } from "../app/menu.js";
+import { loadAllLikes } from "../pages/likes.js";
+import { plFetch } from "../pages/playlists.js";
 "use strict";
 // Экспорт лайков и плейлистов в файл (правый щелчок → «Экспорт» → TXT / CSV / JSON, tmenu.js).
 //   * TXT  — «Исполнитель - Название» по строке: так список принимают ручной импорт Яндекс Музыки

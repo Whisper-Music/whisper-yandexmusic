@@ -1,0 +1,190 @@
+/* neon — Встроенный стиль «Неон»: переменные, свечение, анимации, рамки панелей, орбиты вокруг «Моей волны».
+   Часть бывшего styles.css: файлы look/styles/01…11 подключаются строго по номерам (порядок = сила правил). */
+:root[data-style="neon"] { --tab-bg: color-mix(in srgb, var(--accent) 24%, #07040f); --glow-c: var(--accent2); }
+:root[data-style="neon"] .tabs { padding: 14px 18px 16px 14px; margin: -12px -14px -10px; gap: 10px; }
+:root[data-style="neon"] .tab {
+  padding: 6px 15px; background: var(--tab-bg); color: color-mix(in srgb, var(--accent) 70%, #fff); border: 1px solid var(--accent2);
+  transition: transform .22s cubic-bezier(.2, .8, .2, 1), box-shadow .25s, background .25s;
+}
+:root[data-style="neon"] .tab:hover {
+  transform: translateY(-2px); background: color-mix(in srgb, var(--accent) 34%, #07040f);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--glow-c) 38%, transparent);
+}
+:root[data-style="neon"] .tab:active { transform: translateY(0) scale(.97); }
+:root[data-style="neon"] .tab.active {
+  color: color-mix(in srgb, var(--accent) 40%, #fff); background: color-mix(in srgb, var(--accent) 38%, #07040f);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--glow-c) 60%, transparent);
+  animation: neonBreath 3.2s steps(48) infinite;
+}
+@keyframes neonBreath {
+  0%, 100% { box-shadow: 0 0 8px color-mix(in srgb, var(--glow-c) 38%, transparent), inset 0 0 8px color-mix(in srgb, var(--glow-c) 14%, transparent); }
+  50%      { box-shadow: 0 0 16px color-mix(in srgb, var(--glow-c) 62%, transparent), inset 0 0 12px color-mix(in srgb, var(--glow-c) 26%, transparent); }
+}
+
+:root[data-style="neon"] .nav { transition: background .15s, transform .18s cubic-bezier(.2, .8, .2, 1), box-shadow .2s; }
+:root[data-style="neon"] .nav:hover:not(:disabled):not(.active) { transform: translateX(3px); box-shadow: 0 0 14px color-mix(in srgb, var(--glow-c) 35%, transparent); }
+:root[data-style="neon"] .nav:active:not(:disabled) { transform: scale(.98); }
+:root[data-style="neon"] .nav.active { background-size: 220% 100%; animation: neonSheen 7s steps(105) infinite alternate; }
+@keyframes neonSheen { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+
+:root[data-style="neon"] .list li {
+  transition: background .15s, transform .18s cubic-bezier(.2, .8, .2, 1), box-shadow .2s;
+  animation: neonRise .38s cubic-bezier(.2, .8, .2, 1) backwards;
+}
+:root[data-style="neon"] .list li:nth-child(n+16) { animation: none; }
+:root[data-style="neon"] .list li:nth-child(2) { animation-delay: 28ms; }
+:root[data-style="neon"] .list li:nth-child(3) { animation-delay: 56ms; }
+:root[data-style="neon"] .list li:nth-child(4) { animation-delay: 84ms; }
+:root[data-style="neon"] .list li:nth-child(5) { animation-delay: 112ms; }
+:root[data-style="neon"] .list li:nth-child(6) { animation-delay: 140ms; }
+:root[data-style="neon"] .list li:nth-child(7) { animation-delay: 168ms; }
+:root[data-style="neon"] .list li:nth-child(8) { animation-delay: 196ms; }
+:root[data-style="neon"] .list li:nth-child(9) { animation-delay: 224ms; }
+:root[data-style="neon"] .list li:nth-child(10) { animation-delay: 252ms; }
+:root[data-style="neon"] .list li:nth-child(11) { animation-delay: 280ms; }
+:root[data-style="neon"] .list li:nth-child(12) { animation-delay: 308ms; }
+:root[data-style="neon"] .list li:nth-child(13) { animation-delay: 336ms; }
+:root[data-style="neon"] .list li:nth-child(14) { animation-delay: 364ms; }
+:root[data-style="neon"] .list li:nth-child(15) { animation-delay: 392ms; }
+:root[data-style="neon"] .list li:hover { transform: translateX(4px); box-shadow: inset 3px 0 0 var(--glow-c), 0 0 18px color-mix(in srgb, var(--glow-c) 18%, transparent); }
+:root[data-style="neon"] .list li.playing { box-shadow: inset 3px 0 0 var(--glow-c); }
+:root[data-style="neon"] .list img { transition: transform .2s, box-shadow .2s; }
+:root[data-style="neon"] .list li:hover img { transform: scale(1.06); box-shadow: 0 0 14px color-mix(in srgb, var(--glow-c) 45%, transparent); }
+@keyframes neonRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+:root[data-style="neon"] .head h2 { animation: neonTitle 5s steps(60) infinite; }   /* крупная тень 22–34 px — дорогая */
+@keyframes neonTitle {
+  0%, 100% { text-shadow: 0 0 22px color-mix(in srgb, var(--accent) 50%, transparent); }
+  50%      { text-shadow: 0 0 34px color-mix(in srgb, var(--accent) 78%, transparent); }
+}
+/* Медленное «дыхание» свечения (box-shadow / text-shadow) видеокарта не делает — каждый кадр это перерисовка
+   на основном потоке. Ступеньками ~15 раз в секунду: глазу не видно, а работы в разы меньше. */
+:root[data-style="neon"] body.is-playing .player .cover { animation: neonCover 2.6s steps(39) infinite; }
+@keyframes neonCover {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 18px 2px color-mix(in srgb, var(--accent) 55%, transparent); }
+}
+:root[data-style="neon"] body.is-playing .player .playbtn { animation: neonPlay 2.2s steps(33) infinite; }
+@keyframes neonPlay {
+  0%   { box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent); }
+  70%  { box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 0 12px transparent; }
+  100% { box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-style="neon"] *, :root[data-style="neon"] *::before, :root[data-style="neon"] *::after { animation: none !important; transition-duration: .01ms !important; }
+}
+
+/* ---------- Неон: рамки панелей вторым цветом ----------
+   Рамка всегда цвета --accent2. Свечение целиком считается от ползунка «Свечение» (--glow):
+   при 0 все тени нулевого размера — остаётся просто цветная рамка. */
+:root[data-style="neon"] {
+  --neon-edge: color-mix(in srgb, var(--accent2) 88%, transparent);
+  --neon-halo:
+    0 0 calc(var(--glow) * .3) color-mix(in srgb, var(--accent2) 75%, transparent),
+    0 0 var(--glow) color-mix(in srgb, var(--accent2) 42%, transparent),
+    inset 0 0 calc(var(--glow) * .45) color-mix(in srgb, var(--accent2) 18%, transparent);
+}
+:root[data-style="neon"] .panel { border-color: var(--neon-edge); box-shadow: var(--neon-halo); }
+:root[data-style="neon"] .volpop, :root[data-style="neon"] .stations,
+:root[data-style="neon"] .tmenu, :root[data-style="neon"] .toast { border-color: var(--neon-edge); }
+
+/* при включении стиля (и при запуске) рамки «зажигаются», как неоновая трубка — пара миганий */
+:root[data-style="neon"] .side, :root[data-style="neon"] .player { animation: neonPowerOn 1.3s steps(1, end) backwards; }
+:root[data-style="neon"] .player { animation-delay: .18s; }
+@keyframes neonPowerOn {
+  0%       { border-color: transparent; box-shadow: none; }
+  8%       { border-color: var(--neon-edge); box-shadow: var(--neon-halo); }
+  13%      { border-color: transparent; box-shadow: none; }
+  25%      { border-color: var(--neon-edge); box-shadow: var(--neon-halo); }
+  29%      { border-color: color-mix(in srgb, var(--accent2) 30%, transparent); box-shadow: none; }
+  42%, 100% { border-color: var(--neon-edge); box-shadow: var(--neon-halo); }
+}
+
+/* пока играет музыка, по рамке нижней панели бегут два огонька (второй и основной цвет) */
+@property --neon-run { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+:root[data-style="neon"] .player { position: relative; }
+:root[data-style="neon"] .player::before {
+  content: ""; position: absolute; inset: -2px; padding: 3px; border-radius: 24px; pointer-events: none;
+  background: conic-gradient(from var(--neon-run),
+    transparent 0deg 18deg, color-mix(in srgb, var(--accent2) 65%, #fff) 52deg, transparent 80deg 198deg,
+    color-mix(in srgb, var(--accent) 55%, #fff) 232deg, transparent 260deg 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  filter: blur(1px); opacity: 0; transition: opacity .9s ease;
+}
+/* Огоньки — анимация зарегистрированного свойства: её считает не видеокарта, а основной поток, и каждый кадр
+   перерисовывается вся рамка плеера (маска + blur) вместе со стеклом панели. На 60 кадрах это и были «просадки,
+   пока играет трек»: наведение и прокрутка ждали отрисовку. 20 шагов в секунду на глаз почти не отличить. */
+:root[data-style="neon"] body.is-playing .player::before { opacity: .9; animation: neonRun 9s steps(180) infinite; }
+@keyframes neonRun { to { --neon-run: 360deg; } }
+
+/* ---------- Неон: орбиты вокруг кнопки «Моя волна» ----------
+   .waveorbits — отдельный слой между визуализатором и кнопкой (в index.html), на раскладку не влияет.
+   1 — «комета» второго цвета, 2 — пунктирное кольцо, 3 — встречная комета основного цвета,
+   4–5 — ударные волны. Пока волна играет, кольца крутятся быстрее (main.js, playbackRate),
+   а при включённом визуализаторе всё дышит в такт: --kick (0…1) приходит из анализатора на каждый удар бочки,
+   и волны 4–5 запускаются ровно на удар, а не по таймеру. */
+@property --orb-h { syntax: "<number>"; inherits: true; initial-value: 0; }
+:root[data-style="neon"]:not([data-anim="off"]) .stage { --viz-gap: 46px; }      /* визуализатор начинается снаружи орбит */
+/* без анимаций неподвижные кольца и огоньки на рамке смотрятся как случайные полосы — убираем их совсем;
+   включатся анимации — вернутся вместе с ними */
+:root[data-style="neon"][data-anim="off"] .waveorbits,
+:root[data-style="neon"][data-anim="off"] .player::before { display: none; }
+:root[data-style="neon"] .waveorbits {
+  display: block; position: absolute; left: 50%; top: 50%; z-index: 0; width: 112px; height: 112px; pointer-events: none;
+  translate: -50% -50%;
+  scale: calc(1 + var(--kick, 0) * .08 + var(--orb-h) * .06);
+  opacity: .62;
+  transition: --orb-h .4s cubic-bezier(.2, .8, .2, 1), opacity .6s ease;
+  filter: drop-shadow(0 0 calc(var(--glow) * .4) color-mix(in srgb, var(--accent2) 80%, transparent));
+}
+:root[data-style="neon"] .waveorbits.on { opacity: 1; }
+:root[data-style="neon"][data-anim="on"] .stage:has(.wavebtn:hover) .waveorbits { --orb-h: 1; opacity: 1; }
+@media (max-height: 680px) { :root[data-style="neon"] .waveorbits { width: 92px; height: 92px; } }
+:root[data-style="neon"] .waveorbits i { position: absolute; inset: 0; border-radius: 50%; }
+:root[data-style="neon"] .waveorbits i::before { content: ""; position: absolute; border-radius: 50%; }
+
+/* кольцо 1: дуга второго цвета, яркий край и тающий хвост */
+:root[data-style="neon"] .waveorbits i:nth-child(1) { inset: -11px; animation: neonSpin 7s linear infinite; }
+:root[data-style="neon"] .waveorbits i:nth-child(1)::before {
+  inset: 0;
+  background: conic-gradient(transparent 0 30%, color-mix(in srgb, var(--accent2) 30%, transparent) 66%, var(--accent2) 95%, color-mix(in srgb, var(--accent2) 35%, #fff) 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
+}
+/* кольцо 2: тонкий пунктир, медленно крутится навстречу */
+:root[data-style="neon"] .waveorbits i:nth-child(2) {
+  inset: -21px; opacity: .55;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--accent) 80%, #fff) 0 4deg, transparent 4deg 12deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.6px), #000 calc(100% - 1.2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1.6px), #000 calc(100% - 1.2px));
+  animation: neonSpin 32s linear infinite reverse;
+}
+/* кольцо 3: встречная дуга основного цвета */
+:root[data-style="neon"] .waveorbits i:nth-child(3) { inset: -31px; animation: neonSpin 11s linear infinite reverse; }
+:root[data-style="neon"] .waveorbits i:nth-child(3)::before {
+  inset: 0;
+  background: conic-gradient(color-mix(in srgb, var(--accent) 35%, #fff) 0, var(--accent) 4%, color-mix(in srgb, var(--accent) 28%, transparent) 30%, transparent 58%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.6px), #000 calc(100% - 2.2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.6px), #000 calc(100% - 2.2px));
+}
+/* 4–5: ударные волны от края кнопки */
+:root[data-style="neon"] .waveorbits i:nth-child(n+4) { border: 2px solid var(--accent2); opacity: 0; }
+:root[data-style="neon"] .waveorbits.on:not(.beats) i:nth-child(4) { animation: neonShock 2.6s cubic-bezier(.1, .6, .3, 1) infinite; }
+:root[data-style="neon"] .waveorbits.on:not(.beats) i:nth-child(5) { animation: neonShock 2.6s cubic-bezier(.1, .6, .3, 1) 1.3s infinite; }
+@keyframes neonSpin { to { rotate: 360deg; } }
+@keyframes neonShock {
+  0%   { opacity: .9; scale: 1; border-width: 3px; }
+  100% { opacity: 0; scale: 1.85; border-width: .5px; }
+}
+/* сама кнопка: вместо общего «кольца» — дыхание свечения; с визуализатором — вспышка на каждый удар */
+:root[data-style="neon"] .stage:not(.viz) .wavebtn.playing { animation: neonCore 2.6s steps(39) infinite; }
+@keyframes neonCore {
+  0%, 100% { box-shadow: 0 0 calc(var(--glow) * 2) color-mix(in srgb, var(--btn-glow) 60%, transparent); }
+  50%      { box-shadow: 0 0 calc(var(--glow) * 3) color-mix(in srgb, var(--btn-glow) 85%, transparent); }
+}
+:root[data-style="neon"] .stage.viz .wavebtn {
+  box-shadow: 0 0 calc(var(--glow) * (2 + var(--kick, 0) * 1.6)) color-mix(in srgb, var(--btn-glow) 65%, transparent);
+}
+

@@ -23,7 +23,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::formats::FormatOptions;
@@ -31,7 +31,7 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_http::reqwest::{redirect, Client, Url};
+use tauri_plugin_http::reqwest::{redirect, Client, Proxy, Url};
 
 const MAX_URL: usize = 2048;
 const MAX_TRACK: u64 = 100 * 1024 * 1024;
@@ -51,7 +51,7 @@ pub enum Source {
     Vk,
 }
 impl Source {
-    fn label(self) -> &'static str {
+    pub(crate) fn label(self) -> &'static str {
         match self {
             Source::YouTube => "YouTube",
             Source::SoundCloud => "SoundCloud",
@@ -59,7 +59,7 @@ impl Source {
         }
     }
     /// экстракторы yt-dlp, которым разрешено работать (имена — IE_NAME, начало совпадения)
-    fn extractors(self) -> &'static str {
+    pub(crate) fn extractors(self) -> &'static str {
         match self {
             Source::YouTube => "youtube",
             Source::SoundCloud => "soundcloud",
@@ -72,7 +72,7 @@ impl Source {
 // ссылка
 // ---------------------------------------------------------------------------------------------------------------
 
-fn host_source(h: &str) -> Option<Source> {
+pub(crate) fn host_source(h: &str) -> Option<Source> {
     match h {
         "youtube.com" | "www.youtube.com" | "m.youtube.com" | "music.youtube.com" | "youtu.be" => Some(Source::YouTube),
         "soundcloud.com" | "www.soundcloud.com" | "m.soundcloud.com" | "on.soundcloud.com" => Some(Source::SoundCloud),
@@ -82,7 +82,7 @@ fn host_source(h: &str) -> Option<Source> {
     }
 }
 
-fn yt_id(s: &str) -> Option<&str> {
+pub(crate) fn yt_id(s: &str) -> Option<&str> {
     (s.len() == 11 && s.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')).then_some(s)
 }
 
@@ -95,11 +95,11 @@ fn vk_id(s: &str) -> Option<(&'static str, String)> {
     (num(a) && num(b)).then(|| (kind, format!("{}{a}_{b}", if rest.starts_with('-') { "-" } else { "" })))
 }
 
-const SC_RESERVED: [&str; 14] = [
+pub(crate) const SC_RESERVED: [&str; 14] = [
     "discover", "search", "stream", "you", "upload", "charts", "stations", "settings", "messages", "notifications",
     "pages", "terms-of-use", "people", "tags",
 ];
-fn sc_name(s: &str) -> bool {
+pub(crate) fn sc_name(s: &str) -> bool {
     !s.is_empty() && s.len() <= 255 && s.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
 }
 
@@ -204,38 +204,38 @@ fn asset() -> &'static str {
     }
 }
 
-fn tool_dir(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn tool_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("tools"))
 }
-fn tool_file(dir: &Path) -> PathBuf {
+pub(crate) fn tool_file(dir: &Path) -> PathBuf {
     dir.join(if cfg!(windows) { "yt-dlp.exe" } else { "yt-dlp" })
 }
 
-fn gh_client() -> &'static Client {
-    static C: OnceLock<Client> = OnceLock::new();
-    C.get_or_init(|| {
-        Client::builder()
-            .connect_timeout(Duration::from_secs(15))
-            .timeout(Duration::from_secs(300))
-            .redirect(redirect::Policy::custom(|a| {
-                let ok_host = matches!(
-                    a.url().host_str(),
-                    Some("github.com" | "objects.githubusercontent.com" | "release-assets.githubusercontent.com")
-                );
-                if a.previous().len() < 8 && a.url().scheme() == "https" && ok_host {
-                    a.follow()
-                } else {
-                    a.error("перенаправление за пределы GitHub")
-                }
-            }))
-            .user_agent(concat!("yandex-desktop/", env!("CARGO_PKG_VERSION"), " (yt-dlp install)"))
-            .build()
-            .expect("не удалось создать HTTP-клиент для yt-dlp")
-    })
+fn gh_client(proxy: Option<&str>) -> Result<Client, String> {
+    let mut b = Client::builder()
+        .connect_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(300))
+        .redirect(redirect::Policy::custom(|a| {
+            let ok_host = matches!(
+                a.url().host_str(),
+                Some("github.com" | "objects.githubusercontent.com" | "release-assets.githubusercontent.com")
+            );
+            if a.previous().len() < 8 && a.url().scheme() == "https" && ok_host {
+                a.follow()
+            } else {
+                a.error("перенаправление за пределы GitHub")
+            }
+        }))
+        .user_agent(concat!("yandex-desktop/", env!("CARGO_PKG_VERSION"), " (yt-dlp install)"));
+    // прокси тот же, что у браузера (иначе при одном PAC-файле GitHub не открывался вовсе)
+    if let Some(p) = proxy {
+        b = b.proxy(Proxy::all(p).map_err(|e| format!("прокси {p} не подошёл: {e}"))?);
+    }
+    b.build().map_err(|e| format!("не удалось создать HTTP-клиент для yt-dlp: {e}"))
 }
 
-async fn get_limited(url: &str, max: usize) -> Result<Vec<u8>, String> {
-    let mut resp = gh_client().get(url).send().await.map_err(|e| format!("GitHub не отвечает: {e}"))?;
+async fn get_limited(client: &Client, url: &str, max: usize) -> Result<Vec<u8>, String> {
+    let mut resp = client.get(url).send().await.map_err(|e| format!("GitHub не отвечает: {e}"))?;
     if !resp.status().is_success() {
         return Err(format!("GitHub ответил {}", resp.status()));
     }
@@ -265,7 +265,7 @@ fn expected_sum(sums: &str, name: &str) -> Option<String> {
     })
 }
 
-fn no_window(cmd: &mut Command) {
+pub(crate) fn no_window(cmd: &mut Command) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -286,10 +286,13 @@ fn tool_version(tool: &Path) -> Option<String> {
 
 /// Скачать последний выпуск yt-dlp в dir и сверить контрольную сумму. Возвращает версию.
 pub async fn install_to(dir: &Path) -> Result<String, String> {
+    // PAC разбирается сетевым запросом — не держим этим поток выполнения Tauri
+    let proxy = tauri::async_runtime::spawn_blocking(|| crate::proxy::for_url(RELEASE)).await.unwrap_or(None);
+    let client = gh_client(proxy.as_deref())?;
     let name = asset();
-    let sums = get_limited(&format!("{RELEASE}SHA2-256SUMS"), 64 * 1024).await?;
+    let sums = get_limited(&client, &format!("{RELEASE}SHA2-256SUMS"), 64 * 1024).await?;
     let want = expected_sum(&String::from_utf8_lossy(&sums), name).ok_or("в списке контрольных сумм нет нужного файла")?;
-    let bin = get_limited(&format!("{RELEASE}{name}"), MAX_TOOL).await?;
+    let bin = get_limited(&client, &format!("{RELEASE}{name}"), MAX_TOOL).await?;
     if sha256_hex(&bin) != want {
         return Err("контрольная сумма yt-dlp не совпала — файл не тот, ставить не будем".into());
     }
@@ -315,14 +318,14 @@ pub async fn install_to(dir: &Path) -> Result<String, String> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolStatus {
-    installed: bool,
+    pub(crate) installed: bool,
     version: String,
     /// когда поставлен или обновлён (мс с 1970), 0 — не стоит
-    updated_at: u64,
+    pub(crate) updated_at: u64,
     size: u64,
 }
 
-fn status_of(dir: &Path) -> ToolStatus {
+pub(crate) fn status_of(dir: &Path) -> ToolStatus {
     let f = tool_file(dir);
     let meta = std::fs::symlink_metadata(&f).ok().filter(|m| m.is_file());
     let at = meta
@@ -344,7 +347,7 @@ pub fn link_tool_status(app: AppHandle) -> Result<ToolStatus, String> {
     Ok(status_of(&tool_dir(&app)?))
 }
 
-static INSTALLING: AtomicBool = AtomicBool::new(false);
+pub(crate) static INSTALLING: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
 pub async fn link_tool_install(app: AppHandle) -> Result<ToolStatus, String> {
@@ -378,8 +381,23 @@ pub fn link_tool_remove(app: AppHandle) -> Result<(), String> {
 // скачивание
 // ---------------------------------------------------------------------------------------------------------------
 
-static BUSY: AtomicBool = AtomicBool::new(false);
-static CANCEL: AtomicBool = AtomicBool::new(false);
+pub(crate) static BUSY: AtomicBool = AtomicBool::new(false);
+pub(crate) static CANCEL: AtomicBool = AtomicBool::new(false);
+
+/// Длинная запись для нарезки на треки (linkset.rs): до 4 часов и 400 МБ.
+pub(crate) const MAX_LONG: u64 = 400 * 1024 * 1024;
+pub(crate) const MAX_LONG_SECONDS: u32 = 4 * 3600;
+/// Сколько треков плейлиста можно взять за раз.
+pub(crate) const MAX_LIST: usize = 50;
+
+/// Что качаем: один трек (как всегда), длинную запись целиком (её потом режет linkset.rs) или выбранные
+/// треки плейлиста (номера через запятую, «1,3,7» — их проверяет linkset.rs).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Mode<'a> {
+    One,
+    Long,
+    List(&'a str),
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Meta {
@@ -387,22 +405,34 @@ pub struct Meta {
     pub uploader: String,
     pub artist: String,
     pub track: String,
+    pub album: String,
     pub duration: f64,
+    /// номер в плейлисте (Mode::List), иначе 0
+    pub index: u32,
 }
 
-fn s(v: &serde_json::Value, k: &str) -> String {
+pub(crate) fn s(v: &serde_json::Value, k: &str) -> String {
     v.get(k).and_then(|x| x.as_str()).unwrap_or("").chars().filter(|c| !c.is_control()).take(300).collect::<String>().trim().to_string()
 }
 
 /// Аргументы yt-dlp (кроме адреса) — отдельной функцией, чтобы тест видел их целиком.
-fn args(src: Source, dir: &Path) -> Vec<String> {
+#[cfg(test)]
+fn args(src: Source, dir: &Path, proxy: Option<&str>) -> Vec<String> {
+    args_with(src, dir, proxy, Mode::One)
+}
+
+fn args_with(src: Source, dir: &Path, proxy: Option<&str>, mode: Mode) -> Vec<String> {
+    let (max, filter, out) = match mode {
+        Mode::One => ("100M", "!is_live & duration <=? 3600", "track.%(ext)s"),
+        Mode::Long => ("400M", "!is_live & duration <=? 14400", "track.%(ext)s"),
+        Mode::List(_) => ("100M", "!is_live & duration <=? 3600", "%(playlist_index)03d.%(ext)s"),
+    };
     let mut a: Vec<String> = [
         "--ignore-config",
         "--no-plugin-dirs",
         "--no-cookies",
         "--no-cookies-from-browser",
         "--no-exec",
-        "--no-playlist",
         "--no-cache-dir",
         "--no-mtime",
         "--no-write-info-json",
@@ -417,9 +447,9 @@ fn args(src: Source, dir: &Path) -> Vec<String> {
         "--format",
         FORMAT,
         "--max-filesize",
-        "100M",
+        max,
         "--match-filters",
-        "!is_live & duration <=? 3600",
+        filter,
         "--socket-timeout",
         "30",
         "--retries",
@@ -434,27 +464,40 @@ fn args(src: Source, dir: &Path) -> Vec<String> {
         "download:WMDL %(progress.downloaded_bytes)s %(progress.total_bytes)s %(progress.total_bytes_estimate)s",
         "--no-simulate",
         "--print",
-        "after_move:WMJSON %(.{title,uploader,artist,track,duration,ext,extractor_key})j",
+        "after_move:WMJSON %(.{title,uploader,artist,track,album,duration,ext,extractor_key,playlist_index})j",
         "--output",
-        "track.%(ext)s",
+        out,
     ]
     .iter()
     .map(|x| x.to_string())
     .collect();
+    // плейлист — только выбранные номера; иначе — строго одно видео
+    match mode {
+        Mode::List(items) => {
+            a.extend(["--yes-playlist", "--playlist-items", items, "--print", "before_dl:WMITEM %(playlist_index)s"].map(String::from));
+        }
+        _ => a.push("--no-playlist".into()),
+    }
+    // папка — сразу за --paths: раньше между ними вставал --proxy, и с прокси yt-dlp брал «--proxy» за папку
     a.push("--paths".into());
     a.push(dir.to_string_lossy().into_owned());
+    // путь в сеть — как у браузера: ручной прокси, PAC-файл или автоопределение (proxy.rs)
+    if let Some(p) = proxy {
+        a.push("--proxy".into());
+        a.push(p.to_string());
+    }
     a
 }
 
-fn explain(stderr: &str) -> String {
+fn explain(stderr: &str, long: bool) -> String {
     let e = stderr.to_ascii_lowercase();
     let pick = |m: &str| m.to_string();
     if e.contains("requested format is not available") || e.contains("no video formats") {
         pick("в этой ссылке нет отдельной звуковой дорожки m4a или mp3")
     } else if e.contains("does not pass filter") || e.contains("is_live") {
-        pick("это прямой эфир или запись длиннее часа — такие не скачиваем")
+        pick(if long { "это прямой эфир или запись длиннее 4 часов — такие не скачиваем" } else { "это прямой эфир или запись длиннее часа — такие не скачиваем" })
     } else if e.contains("max-filesize") || e.contains("larger than max") {
-        pick("файл больше 100 МБ")
+        pick(if long { "файл больше 400 МБ" } else { "файл больше 100 МБ" })
     } else if e.contains("private video") || e.contains("sign in") || e.contains("login") || e.contains("authentication") {
         pick("видео закрыто или доступно только после входа — такие не скачиваем")
     } else if e.contains("unavailable") || e.contains("not available") || e.contains("404") {
@@ -472,9 +515,24 @@ fn explain(stderr: &str) -> String {
 
 /// Запустить yt-dlp для одной проверенной ссылки и дождаться файла. progress(скачано, всего) — по ходу.
 pub fn run(tool: &Path, url: &str, src: Source, dir: &Path, progress: impl Fn(u64, u64) + Send + 'static) -> Result<(PathBuf, Meta), String> {
+    let mut v = run_mode(tool, url, src, dir, Mode::One, move |d, t, _| progress(d, t))?;
+    v.pop().ok_or_else(|| "yt-dlp не оставил файла".into())
+}
+
+/// То же для любого режима. progress(скачано, всего, номер трека плейлиста — 0, если не плейлист).
+/// Возвращает файлы с описаниями; у плейлиста — по возрастанию номера.
+pub(crate) fn run_mode(
+    tool: &Path,
+    url: &str,
+    src: Source,
+    dir: &Path,
+    mode: Mode,
+    progress: impl Fn(u64, u64, u32) + Send + 'static,
+) -> Result<Vec<(PathBuf, Meta)>, String> {
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let proxy = crate::proxy::for_url(url);
     let mut cmd = Command::new(tool);
-    cmd.args(args(src, dir))
+    cmd.args(args_with(src, dir, proxy.as_deref(), mode))
         .arg("--")
         .arg(url)
         .current_dir(dir)
@@ -487,23 +545,30 @@ pub fn run(tool: &Path, url: &str, src: Source, dir: &Path, progress: impl Fn(u6
     }
     no_window(&mut cmd);
     let mut child = cmd.spawn().map_err(|e| format!("yt-dlp не запустился: {e}"))?;
-    let meta: Arc<Mutex<Option<serde_json::Value>>> = Arc::default();
+    let metas: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
     let tail: Arc<Mutex<String>> = Arc::default();
     let out = child.stdout.take().map(|o| {
-        let meta = meta.clone();
+        let metas = metas.clone();
         std::thread::spawn(move || {
             let mut r = BufReader::new(o);
             let mut line = Vec::new();
+            let mut item = 0u32;
             while r.read_until(b'\n', &mut line).map(|n| n > 0).unwrap_or(false) {
                 let l = String::from_utf8_lossy(&line).trim().to_string();
                 line.clear();
                 if let Some(p) = l.strip_prefix("WMDL ") {
                     let n: Vec<u64> = p.split(' ').map(|x| x.parse::<f64>().map(|f| f as u64).unwrap_or(0)).collect();
                     let total = n.get(1).copied().filter(|&t| t > 0).or_else(|| n.get(2).copied()).unwrap_or(0);
-                    progress(n.first().copied().unwrap_or(0), total);
+                    progress(n.first().copied().unwrap_or(0), total, item);
+                } else if let Some(i) = l.strip_prefix("WMITEM ") {
+                    item = i.trim().parse().unwrap_or(item);
+                    progress(0, 0, item);
                 } else if let Some(j) = l.strip_prefix("WMJSON ") {
                     if let Ok(v) = serde_json::from_str(j) {
-                        *meta.lock().unwrap_or_else(|e| e.into_inner()) = Some(v);
+                        let mut m = metas.lock().unwrap_or_else(|e| e.into_inner());
+                        if m.len() < MAX_LIST {
+                            m.push(v);
+                        }
                     }
                 }
             }
@@ -528,12 +593,14 @@ pub fn run(tool: &Path, url: &str, src: Source, dir: &Path, progress: impl Fn(u6
             }
         })
     });
+    // длинную запись и плейлист качать дольше: до 45 минут
+    let limit = if mode == Mode::One { RUN_LIMIT } else { RUN_LIMIT * 3 };
     let started = Instant::now();
     let status = loop {
         if let Some(st) = child.try_wait().map_err(|e| e.to_string())? {
             break st;
         }
-        if CANCEL.load(Ordering::SeqCst) || started.elapsed() > RUN_LIMIT {
+        if CANCEL.load(Ordering::SeqCst) || started.elapsed() > limit {
             let _ = child.kill();
             let _ = child.wait();
             if let Some(t) = out {
@@ -542,7 +609,8 @@ pub fn run(tool: &Path, url: &str, src: Source, dir: &Path, progress: impl Fn(u6
             if let Some(t) = err {
                 let _ = t.join();
             }
-            return Err(if CANCEL.load(Ordering::SeqCst) { "отменено".into() } else { "скачивание идёт дольше 15 минут — остановлено".into() });
+            let mins = limit.as_secs() / 60;
+            return Err(if CANCEL.load(Ordering::SeqCst) { "отменено".into() } else { format!("скачивание идёт дольше {mins} минут — остановлено") });
         }
         std::thread::sleep(Duration::from_millis(150));
     };
@@ -552,33 +620,66 @@ pub fn run(tool: &Path, url: &str, src: Source, dir: &Path, progress: impl Fn(u6
     if let Some(t) = err {
         let _ = t.join();
     }
-    if !status.success() {
-        return Err(explain(&tail.lock().unwrap_or_else(|e| e.into_inner())));
+    let list = matches!(mode, Mode::List(_));
+    // у плейлиста yt-dlp идёт дальше, если один трек недоступен, и в конце отвечает ошибкой — скачанное берём
+    let files: Vec<PathBuf> = std::fs::read_dir(dir).map_err(|e| e.to_string())?.flatten().map(|e| e.path()).collect();
+    if !status.success() && !(list && !files.is_empty()) {
+        return Err(explain(&tail.lock().unwrap_or_else(|e| e.into_inner()), mode == Mode::Long));
     }
-    // в папке — ровно один обычный файл track.m4a / track.mp3, ничего больше
-    let mut files = Vec::new();
-    for e in std::fs::read_dir(dir).map_err(|e| e.to_string())?.flatten() {
-        files.push(e.path());
-    }
-    let [file] = files.as_slice() else {
-        return Err("yt-dlp оставил не один файл — такое не берём".into());
-    };
-    let name = file.file_name().and_then(|n| n.to_str()).unwrap_or("");
-    if !matches!(name, "track.m4a" | "track.mp3") {
-        return Err("скачался не звуковой файл".into());
-    }
-    let v = meta.lock().unwrap_or_else(|e| e.into_inner()).take().unwrap_or_default();
-    let m = Meta {
-        title: s(&v, "title"),
-        uploader: s(&v, "uploader"),
-        artist: s(&v, "artist"),
-        track: s(&v, "track"),
+    let name_of = |p: &Path| p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+    let meta_of = |v: &serde_json::Value| Meta {
+        title: s(v, "title"),
+        uploader: s(v, "uploader"),
+        artist: s(v, "artist"),
+        track: s(v, "track"),
+        album: s(v, "album"),
         duration: v.get("duration").and_then(|d| d.as_f64()).unwrap_or(0.0),
+        index: v.get("playlist_index").and_then(|d| d.as_u64()).unwrap_or(0).min(u32::MAX as u64) as u32,
     };
-    if m.duration > MAX_SECONDS as f64 + 1.0 {
-        return Err("запись длиннее часа".into());
+    let metas = std::mem::take(&mut *metas.lock().unwrap_or_else(|e| e.into_inner()));
+    let max_dur = if mode == Mode::Long { MAX_LONG_SECONDS } else { MAX_SECONDS } as f64 + 1.0;
+    if !list {
+        // в папке — ровно один обычный файл track.m4a / track.mp3, ничего больше
+        let [file] = files.as_slice() else {
+            return Err("yt-dlp оставил не один файл — такое не берём".into());
+        };
+        if !matches!(name_of(file).as_str(), "track.m4a" | "track.mp3") {
+            return Err("скачался не звуковой файл".into());
+        }
+        let m = metas.last().map(meta_of).unwrap_or_default();
+        if m.duration > max_dur {
+            return Err(if mode == Mode::Long { "запись длиннее 4 часов".into() } else { "запись длиннее часа".into() });
+        }
+        return Ok(vec![(file.clone(), m)]);
     }
-    Ok((file.clone(), m))
+    // плейлист: только «NNN.m4a» / «NNN.mp3», не больше MAX_LIST, описание — по номеру
+    let mut got = Vec::new();
+    for f in &files {
+        let n = name_of(f);
+        // недокачанный трек (он недоступен или сеть мигнула) — просто без него
+        if n.ends_with(".part") || n.ends_with(".ytdl") {
+            let _ = std::fs::remove_file(f);
+            continue;
+        }
+        let Some((num, ext)) = n.split_once('.') else { return Err("yt-dlp оставил чужой файл — такое не берём".into()) };
+        if num.len() != 3 || !num.bytes().all(|c| c.is_ascii_digit()) || !matches!(ext, "m4a" | "mp3") {
+            return Err("yt-dlp оставил чужой файл — такое не берём".into());
+        }
+        let idx: u32 = num.parse().unwrap_or(0);
+        let m = metas.iter().map(meta_of).find(|m| m.index == idx).unwrap_or(Meta { index: idx, ..Default::default() });
+        if m.duration > max_dur {
+            continue;
+        }
+        got.push((f.clone(), m));
+    }
+    if got.len() > MAX_LIST {
+        return Err(format!("в плейлисте больше {MAX_LIST} треков — выбери меньше"));
+    }
+    got.sort_by_key(|(_, m)| m.index);
+    if got.is_empty() {
+        return Err(explain(&tail.lock().unwrap_or_else(|e| e.into_inner()), false));
+    }
+    Ok(got)
 }
 
 /// В mp4: обработчики дорожек (hdlr) — есть ли видео.
@@ -588,19 +689,34 @@ fn has_video_track(b: &[u8]) -> bool {
 
 /// Файл — настоящий звук m4a или mp3 без видео, и он декодируется. Возвращает расширение по содержимому.
 pub fn check_audio(path: &Path) -> Result<&'static str, String> {
+    check_audio_max(path, MAX_TRACK)
+}
+
+/// То же с другим пределом размера (длинная запись — MAX_LONG). Файл целиком в память не читается: видео ищется
+/// в первых и последних 8 МБ (там лежит описание дорожек mp4 — moov), декодер читает с диска.
+pub(crate) fn check_audio_max(path: &Path, max: u64) -> Result<&'static str, String> {
+    use std::io::{Seek, SeekFrom};
+    const EDGE: u64 = 8 * 1024 * 1024;
     let meta = std::fs::symlink_metadata(path).map_err(|e| e.to_string())?;
     if !meta.is_file() {
         return Err("это не файл".into());
     }
-    if meta.len() > MAX_TRACK {
-        return Err("файл больше 100 МБ".into());
+    if meta.len() > max {
+        return Err(format!("файл больше {} МБ", max / 1024 / 1024));
     }
     if meta.len() < 2048 {
         return Err("файл подозрительно маленький".into());
     }
-    let b = std::fs::read(path).map_err(|e| e.to_string())?;
+    let mut f = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let mut b = vec![0u8; meta.len().min(EDGE) as usize];
+    f.read_exact(&mut b).map_err(|e| e.to_string())?;
+    let mut tail = Vec::new();
+    if meta.len() > EDGE {
+        f.seek(SeekFrom::Start(meta.len().saturating_sub(EDGE).max(EDGE))).map_err(|e| e.to_string())?;
+        f.read_to_end(&mut tail).map_err(|e| e.to_string())?;
+    }
     let ext = if b.len() > 12 && &b[4..8] == b"ftyp" {
-        if has_video_track(&b) {
+        if has_video_track(&b) || has_video_track(&tail) {
             return Err("в файле есть видео — берём только звук".into());
         }
         "m4a"
@@ -609,9 +725,11 @@ pub fn check_audio(path: &Path) -> Result<&'static str, String> {
     } else {
         return Err("по содержимому это не m4a и не mp3".into());
     };
+    drop(b);
     let mut hint = Hint::new();
     hint.with_extension(ext);
-    let mss = MediaSourceStream::new(Box::new(std::io::Cursor::new(b)), Default::default());
+    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let probed = symphonia::default::get_probe()
         .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
         .map_err(|e| format!("файл не открывается как звук ({e})"))?;
@@ -647,7 +765,7 @@ pub fn check_audio(path: &Path) -> Result<&'static str, String> {
 }
 
 /// Хвосты в названиях видео: «(Official Video)», «[Lyrics]», «(Клип, 2024)»…
-fn strip_noise(t: &str) -> String {
+pub(crate) fn strip_noise(t: &str) -> String {
     const NOISE: [&str; 16] = [
         "official", "video", "audio", "lyric", "клип", "премьера", "visualizer", "visualiser", "hd", "4k", "mv", "m/v",
         "текст", "караоке", "live video", "full version",
@@ -690,14 +808,14 @@ pub fn file_stem(m: &Meta) -> String {
     if clean.is_empty() { "Трек по ссылке".into() } else { clean }
 }
 
-fn rand_hex() -> String {
+pub(crate) fn rand_hex() -> String {
     let mut b = [0u8; 8];
     let _ = getrandom::fill(&mut b);
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
 /// Старые папки загрузок (больше суток) — удалить: файл из них уже взят окном «Что сделать с треком» или брошен.
-fn sweep(root: &Path) {
+pub(crate) fn sweep(root: &Path) {
     let Ok(rd) = std::fs::read_dir(root) else { return };
     for e in rd.flatten() {
         let old = e.metadata().ok().and_then(|m| m.modified().ok()).and_then(|t| t.elapsed().ok()).is_some_and(|d| d > Duration::from_secs(86400));
@@ -709,15 +827,24 @@ fn sweep(root: &Path) {
 
 #[derive(Serialize)]
 pub struct Checked {
+    /// один трек (пусто — ссылка только на плейлист)
     url: String,
     source: &'static str,
+    /// плейлист в той же ссылке (watch?v=…&list=… или сама страница плейлиста) — linkset.rs
+    list: Option<String>,
 }
 
 /// Проверить ссылку до скачивания (интерфейс сразу говорит, что не так).
 #[tauri::command]
 pub fn link_check(url: String) -> Result<Checked, String> {
-    let (u, s) = check_url(&url)?;
-    Ok(Checked { url: u, source: s.label() })
+    let list = crate::linkset::check_list(&url);
+    match check_url(&url) {
+        Ok((u, s)) => Ok(Checked { url: u, source: s.label(), list: list.map(|l| l.0) }),
+        Err(e) => match list {
+            Some((l, s)) => Ok(Checked { url: String::new(), source: s.label(), list: Some(l) }),
+            None => Err(e),
+        },
+    }
 }
 
 #[derive(Serialize, Clone)]
@@ -750,23 +877,32 @@ pub async fn link_download(app: AppHandle, url: String) -> Result<Downloaded, St
     r.map_err(|e| format!("Не получилось скачать с {}: {e}", src.label()))
 }
 
-async fn download(app: &AppHandle, url: &str, src: Source) -> Result<Downloaded, String> {
+/// yt-dlp готов к работе: стоит, а если старше недели — сначала обновляется (не вышло — работаем со старым).
+pub(crate) async fn ready_tool(app: &AppHandle) -> Result<PathBuf, String> {
     let tdir = tool_dir(app)?;
     let st = status_of(&tdir);
     if !st.installed {
         return Err("сначала нужно поставить yt-dlp".into());
     }
-    // раз в неделю — свежий yt-dlp (не вышло — работаем со старым)
     let age = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(st.updated_at);
     if age > UPDATE_AFTER.as_millis() as u64 && !INSTALLING.swap(true, Ordering::SeqCst) {
         let _ = app.emit("link-progress", serde_json::json!({ "stage": "update" }));
         let _ = install_to(&tdir).await;
         INSTALLING.store(false, Ordering::SeqCst);
     }
+    Ok(tool_file(&tdir))
+}
+
+/// Папка загрузок по ссылке (кэш приложения) — старше суток подчищаются.
+pub(crate) fn work_root(app: &AppHandle) -> Result<PathBuf, String> {
     let root = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("linkdl");
     sweep(&root);
-    let dir = root.join(rand_hex());
-    let tool = tool_file(&tdir);
+    Ok(root)
+}
+
+async fn download(app: &AppHandle, url: &str, src: Source) -> Result<Downloaded, String> {
+    let tool = ready_tool(app).await?;
+    let dir = work_root(app)?.join(rand_hex());
     let (a, u, d) = (app.clone(), url.to_string(), dir.clone());
     let res = tauri::async_runtime::spawn_blocking(move || {
         let a2 = a.clone();
@@ -864,7 +1000,7 @@ mod tests {
 
     #[test]
     fn safe_args() {
-        let a = args(Source::YouTube, Path::new("x"));
+        let a = args(Source::YouTube, Path::new("x"), Some("http://127.0.0.1:8080"));
         for need in ["--ignore-config", "--no-plugin-dirs", "--no-exec", "--no-playlist", "--no-cookies"] {
             assert!(a.iter().any(|x| x == need), "нет {need}");
         }
@@ -873,6 +1009,16 @@ mod tests {
         let i = a.iter().position(|x| x == "--use-extractors").unwrap();
         assert_eq!(a[i + 1], "youtube");
         assert!(!a.iter().any(|x| x.contains("cookies-from-browser") && x != "--no-cookies-from-browser"));
+        // папка — сразу за --paths, и с прокси тоже
+        let i = a.iter().position(|x| x == "--paths").unwrap();
+        assert_eq!(a[i + 1], "x");
+        // плейлист — только выбранные номера, без --no-playlist
+        let l = args_with(Source::YouTube, Path::new("x"), None, Mode::List("1,3"));
+        let i = l.iter().position(|x| x == "--playlist-items").unwrap();
+        assert_eq!(l[i + 1], "1,3");
+        assert!(!l.iter().any(|x| x == "--no-playlist"));
+        let g = args_with(Source::YouTube, Path::new("x"), None, Mode::Long);
+        assert!(g.iter().any(|x| x == "400M") && g.iter().any(|x| x.contains("14400")));
     }
 
     #[test]

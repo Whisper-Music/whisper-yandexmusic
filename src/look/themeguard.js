@@ -19,6 +19,12 @@
 // (например, скрыла весь body), включается встроенный «Королевский» — как по Ctrl+Shift+Backspace.
 // Автор ошибся, а у пользователя всё в порядке (кнопки показываются при наведении и т. п.) — «Не показывать для
 // этого стиля» запоминает выбор (localStorage ym_tguard).
+import { invoke, lsJSON } from "../app/base.js";
+import { showToast } from "../app/menu.js";
+import { reachable } from "../app/offline.js";
+import { winDragFrom } from "../app/window.js";
+import { applyCfg, BUILTIN, saveCfg, syncControls, themeReady } from "./config.js";
+import { togglePlay } from "../player/core.js";
 (() => {
   const KEY = "ym_tguard", PERIOD = 20000;
   const dismissed = new Set(lsJSON(KEY, [], Array.isArray).filter((x) => typeof x === "string").slice(0, 100));

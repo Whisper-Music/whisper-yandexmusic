@@ -14,6 +14,12 @@
 //!
 //! Ошибки с префиксом «WASAPI:» — проблема устройства или формата: интерфейс возвращается в общий режим
 //! и играет трек обычным путём. «LOCAL:» — скачанный файл пропал.
+//!
+//! DJ-переход (engine_dj, transitions.js): в эксклюзивном режиме устройство принимает один поток, поэтому следующий
+//! трек не открывает своё — он подмешивается в поток играющего (второй декодер в том же потоке воспроизведения):
+//! len секунд звучат оба (прошлый — по косинусу, новый — по синусу, равная мощность), потом новый остаётся один
+//! и события идут уже с его номером загрузки. «DJ:» — смешать не вышло (прошлый уже не играет): интерфейс грузит
+//! трек обычным путём.
 
 use serde::Serialize;
 use std::sync::{
@@ -50,6 +56,9 @@ enum Cmd {
     Pause,
     Seek(f64),
     Stop,
+    /// DJ-переход: подмешать следующий трек к играющему
+    #[cfg(windows)]
+    Mix(Box<wasapi::MixReq>),
 }
 
 struct Session {
@@ -159,20 +168,7 @@ pub async fn engine_load(
             engine_gain(g);
         }
         let device = device.filter(|d| device_ok(d));
-        let src = match kind.as_str() {
-            "ym" => {
-                let url = crate::net::track_url_q(&id, quality.as_deref() == Some("low")).await?;
-                wasapi::Src::Bytes(crate::net::fetch_media(&url).await?, Some("mp3"))
-            }
-            "local" => {
-                // файл открыт и проверен в download.rs (только папка загрузок, без подмены ссылкой) —
-                // движок читает из этого же дескриптора, путь нужен только как подсказка формата
-                let (file, path, _) = crate::download::open_local(&app, &id).ok_or("LOCAL: скачанный файл не найден")?;
-                wasapi::Src::File(file, path)
-            }
-            "wa" => wasapi::Src::Bytes(crate::whisper::wa_track_bytes(&id).await?, None),
-            _ => return Err("неизвестный источник".into()),
-        };
+        let src = load_src(&app, &kind, &id, quality.as_deref()).await?;
         if engine().gen.load(SeqCst) != gen {
             return Err("загрузка устарела".into());
         }
@@ -197,6 +193,70 @@ pub async fn engine_load(
             .map_err(|_| "WASAPI: движок остановился".to_string())??;
         Ok(info)
     }
+}
+
+/// DJ-переход: следующий трек подмешивается в поток играющего (len секунд звучат оба) — см. шапку файла.
+/// start — откуда играть новый (начало звука, edges.rs). Номер загрузки нового — в ответе; команды
+/// (пауза, перемотка, громкость) дальше относятся к нему.
+#[tauri::command]
+#[allow(unused_variables)]
+pub async fn engine_dj(
+    app: AppHandle,
+    kind: String,
+    id: String,
+    quality: Option<String>,
+    start: f64,
+    len: f64,
+) -> Result<LoadInfo, String> {
+    #[cfg(not(windows))]
+    {
+        Err("DJ: эксклюзивный режим есть только в Windows".into())
+    }
+    #[cfg(windows)]
+    {
+        let len = if len.is_finite() { len.clamp(1.0, 20.0) } else { 8.0 };
+        let gen = engine().gen.fetch_add(1, SeqCst) + 1;
+        let src = load_src(&app, &kind, &id, quality.as_deref()).await?;
+        if engine().gen.load(SeqCst) != gen {
+            return Err("загрузка устарела".into());
+        }
+        let (rtx, rrx) = mpsc::sync_channel(1);
+        let start = if start.is_finite() && start > 0.0 { start } else { 0.0 };
+        {
+            let mut cur = engine().cur.lock().unwrap_or_else(|e| e.into_inner());
+            let s = cur.as_mut().ok_or("DJ: в движке ничего не играет")?;
+            s.tx.send(Cmd::Mix(Box::new(wasapi::MixReq { gen, src, start, len, ready: rtx })))
+                .map_err(|_| "DJ: движок остановлен".to_string())?;
+        }
+        let info = tauri::async_runtime::spawn_blocking(move || rrx.recv())
+            .await
+            .map_err(|_| "DJ: движок остановился".to_string())?
+            .map_err(|_| "DJ: движок остановился".to_string())??;
+        // смешивание началось — engine_stop и проверки номера дальше про новый трек
+        if let Some(s) = engine().cur.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+            s.gen = gen;
+        }
+        Ok(info)
+    }
+}
+
+/// Источник трека по номеру: Яндекс (ссылка из net.rs), скачанный файл (download.rs), Whisper Archive.
+#[cfg(windows)]
+async fn load_src(app: &AppHandle, kind: &str, id: &str, quality: Option<&str>) -> Result<wasapi::Src, String> {
+    Ok(match kind {
+        "ym" => {
+            let url = crate::net::track_url_q(id, quality == Some("low")).await?;
+            wasapi::Src::Bytes(crate::net::fetch_media(&url).await?, Some("mp3"))
+        }
+        "local" => {
+            // файл открыт и проверен в download.rs (только папка загрузок, без подмены ссылкой) —
+            // движок читает из этого же дескриптора, путь нужен только как подсказка формата
+            let (file, path, _) = crate::download::open_local(app, id).ok_or("LOCAL: скачанный файл не найден")?;
+            wasapi::Src::File(file, path)
+        }
+        "wa" => wasapi::Src::Bytes(crate::whisper::wa_track_bytes(id).await?, None),
+        _ => return Err("неизвестный источник".into()),
+    })
 }
 
 #[cfg(windows)]
@@ -231,6 +291,24 @@ mod wasapi {
     pub enum Src {
         Bytes(Vec<u8>, Option<&'static str>),
         File(std::fs::File, PathBuf),
+    }
+
+    /// DJ-переход: что подмешать (engine_dj → поток воспроизведения)
+    pub struct MixReq {
+        pub gen: u64,
+        pub src: Src,
+        pub start: f64,
+        pub len: f64,
+        pub ready: mpsc::SyncSender<Result<LoadInfo, String>>,
+    }
+
+    /// Идущее наложение: второй декодер, его номер загрузки и сколько кадров уже смешано
+    struct Mix {
+        dec: Dec,
+        gen: u64,
+        base: f64,
+        len: u64,
+        done: u64,
     }
 
     #[derive(Serialize, Clone)]
@@ -790,15 +868,53 @@ mod wasapi {
         unsafe fn write(&mut self, dec: &mut Dec, gain: f32) -> Result<usize, String> {
             let n = self.frames as usize;
             dec.fill(n);
+            let take = dec.avail().min(n);
+            let rd = dec.rd;
+            unsafe { self.put(&dec.buf[rd..rd + take * 2], gain, false) }?;
+            dec.rd += take * 2;
+            Ok(take)
+        }
+
+        /// DJ-переход: буфер устройства — смесь двух треков; прошлый затихает по косинусу, новый входит по синусу.
+        /// Возвращает (кадров прошлого, кадров нового).
+        unsafe fn write_mix(&mut self, a: &mut Dec, m: &mut Mix, gain: f32, scratch: &mut Vec<f32>) -> Result<(usize, usize), String> {
+            let n = self.frames as usize;
+            a.fill(n);
+            m.dec.fill(n);
+            let (ta, tb) = (a.avail().min(n), m.dec.avail().min(n));
+            let total = ta.max(tb);
+            scratch.clear();
+            scratch.resize(total * 2, 0.0);
+            let half = std::f32::consts::FRAC_PI_2;
+            for i in 0..total {
+                let p = ((m.done + i as u64) as f32 / m.len.max(1) as f32).min(1.0);
+                let (ga, gb) = ((p * half).cos(), (p * half).sin());
+                for c in 0..2 {
+                    let x = if i < ta { a.buf[a.rd + i * 2 + c] * ga } else { 0.0 };
+                    let y = if i < tb { m.dec.buf[m.dec.rd + i * 2 + c] * gb } else { 0.0 };
+                    scratch[i * 2 + c] = x + y;
+                }
+            }
+            unsafe { self.put(scratch, gain, true) }?;
+            a.rd += ta * 2;
+            m.dec.rd += tb * 2;
+            m.done += total as u64;
+            Ok((ta, tb))
+        }
+
+        /// Отдать устройству кадры (стерео f32, чередование L R) с усилением; остаток буфера — тишина.
+        /// mixed — звук уже пересчитан (смесь двух треков): в 16 бит всегда с дизерингом.
+        unsafe fn put(&mut self, src: &[f32], gain: f32, mixed: bool) -> Result<(), String> {
+            let n = self.frames as usize;
+            let take = (src.len() / 2).min(n);
             let p = unsafe { self.render.GetBuffer(self.frames) }.map_err(|e| hr_text(&e))?;
             let block = self.block();
             let out = unsafe { std::slice::from_raw_parts_mut(p, n * block) };
-            let take = dec.avail().min(n);
             let unity = gain == 1.0;
-            let dither = self.fmt.container == 16 && (self.dither16 || !unity);
-            let (rd, fmt) = (dec.rd, self.fmt);
+            let dither = self.fmt.container == 16 && (self.dither16 || !unity || mixed);
+            let fmt = self.fmt;
             for i in 0..take * 2 {
-                let s = dec.buf[rd + i];
+                let s = src[i];
                 let s = if unity { s as f64 } else { s as f64 * gain as f64 };
                 if fmt.float {
                     let v = s.clamp(-1.0, 1.0) as f32;
@@ -829,9 +945,8 @@ mod wasapi {
                 }
             }
             out[take * block..].fill(0);
-            dec.rd += take * 2;
             unsafe { self.render.ReleaseBuffer(self.frames, 0) }.map_err(|e| hr_text(&e))?;
-            Ok(take)
+            Ok(())
         }
     }
 
@@ -877,6 +992,7 @@ mod wasapi {
         rx: &mpsc::Receiver<Cmd>,
         ready: &mut Option<mpsc::SyncSender<Result<LoadInfo, String>>>,
     ) -> Result<(), String> {
+        let mut gen = gen;
         let (mut dec, mut info) = Dec::open(src)?;
         let mut base = if start > 0.0 { dec.seek(start) } else { 0.0 };
         let mut out = unsafe { Out::open(device.as_deref(), dec.rate, info.src_bits) }?;
@@ -906,6 +1022,10 @@ mod wasapi {
         let mut drain = 0u32;
         let mut misses = 0u32;
         let mut last = Instant::now();
+        // DJ-переход: второй декодер и общий буфер для смеси
+        let mut mix: Option<Mix> = None;
+        let mut scratch: Vec<f32> = Vec::new();
+        let mut frames_new = 0u64;
         loop {
             let cmd = if playing {
                 match rx.try_recv() {
@@ -943,7 +1063,41 @@ mod wasapi {
                             misses = 0;
                         }
                     }
+                    Cmd::Mix(req) => {
+                        let MixReq { gen: g2, src, start, len, ready } = *req;
+                        if ended || !playing || mix.is_some() {
+                            let _ = ready.send(Err("DJ: прошлый трек уже не играет".into()));
+                            continue;
+                        }
+                        match Dec::open(src) {
+                            Ok((mut d2, mut i2)) => {
+                                let b2 = if start > 0.0 { d2.seek(start) } else { 0.0 };
+                                if out.fmt.rate != d2.rate {
+                                    d2.rs = Some(Resampler::new(d2.rate, out.fmt.rate));
+                                    i2.resampled = true;
+                                }
+                                i2.gen = g2;
+                                i2.out_rate = out.fmt.rate;
+                                i2.out_bits = out.fmt.valid;
+                                i2.out_container = out.fmt.container;
+                                i2.out_channels = 2;
+                                i2.out_float = out.fmt.float;
+                                i2.period_ms = out.period as f64 / 10_000.0;
+                                mix = Some(Mix { dec: d2, gen: g2, base: b2, len: (len * rate) as u64, done: 0 });
+                                frames_new = 0;
+                                let _ = ready.send(Ok(i2));
+                            }
+                            Err(e) => {
+                                let _ = ready.send(Err(format!("DJ: {e}")));
+                            }
+                        }
+                    }
                     Cmd::Seek(t) => {
+                        // перемотка во время наложения — про новый трек: прошлый сразу замолкает
+                        if let Some(m) = mix.take() {
+                            dec = m.dec;
+                            gen = m.gen;
+                        }
                         let was = playing;
                         if was {
                             let _ = unsafe { out.client.Stop() };
@@ -972,6 +1126,26 @@ mod wasapi {
                 continue;
             }
             misses = 0;
+            if let Some(m) = mix.as_mut() {
+                let (_, nb) = unsafe { out.write_mix(&mut dec, m, gain_now(), &mut scratch) }?;
+                frames_new += nb as u64;
+                // наложение кончилось (или прошлый трек дошёл до конца раньше) — дальше играет один новый
+                if m.done >= m.len || (dec.eof && dec.avail() == 0) {
+                    let m = mix.take().expect("mix");
+                    dec = m.dec;
+                    gen = m.gen;
+                    base = m.base;
+                    frames_out = frames_new;
+                    drain = 0;
+                }
+                if last.elapsed() >= Duration::from_millis(200) {
+                    last = Instant::now();
+                    let played = frames_new.saturating_sub(out.frames as u64);
+                    let (g, b) = mix.as_ref().map_or((gen, base), |m| (m.gen, m.base));
+                    emit(app, g, "pos", b + played as f64 / rate, None);
+                }
+                continue;
+            }
             let n = unsafe { out.write(&mut dec, gain_now()) }?;
             frames_out += n as u64;
             if dec.eof && dec.avail() == 0 {

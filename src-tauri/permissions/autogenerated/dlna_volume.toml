@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dlna-volume"
+description = "Enables the dlna_volume command without any pre-configured scope."
+commands.allow = ["dlna_volume"]
+
+[[permission]]
+identifier = "deny-dlna-volume"
+description = "Denies the dlna_volume command without any pre-configured scope."
+commands.deny = ["dlna_volume"]

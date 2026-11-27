@@ -7,6 +7,10 @@
 //     (подбирается поиском по тегам и имени файла), файл называется «Исполнитель - Название» как у него — и с включённой
 //     «Играть треки из архива» вместо версии Яндекса играет твой файл (core/archive.js сопоставляет по названию).
 // Файл интерфейс не читает целиком: Rust берёт его по номеру из списка перетаскивания. Сюда — только чтобы послушать.
+import { invoke } from "../app/base.js";
+import { showToast, toast } from "../app/menu.js";
+import { play } from "../player/core.js";
+import { isLiked, toggleLike } from "../player/like.js";
 (() => {
   const W = window.Whisper;
   const $d = (s, el = document) => el.querySelector(s);

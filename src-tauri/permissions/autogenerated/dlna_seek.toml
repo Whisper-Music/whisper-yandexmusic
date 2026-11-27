@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dlna-seek"
+description = "Enables the dlna_seek command without any pre-configured scope."
+commands.allow = ["dlna_seek"]
+
+[[permission]]
+identifier = "deny-dlna-seek"
+description = "Denies the dlna_seek command without any pre-configured scope."
+commands.deny = ["dlna_seek"]

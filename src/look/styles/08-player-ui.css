@@ -1,0 +1,263 @@
+/* player-ui — Нижняя панель для всех стилей, слой app-motion-off («Анимации интерфейса» выключены), тосты, меню, станции,
+   обложки плейлистов, отметки «скачан».
+   Часть бывшего styles.css: файлы look/styles/01…11 подключаются строго по номерам (порядок = сила правил). */
+:root[data-style] .player { padding: 22px 64px 16px 36px; gap: 18px; border-width: 1px; border-style: solid; }
+:root[data-style="steam"] .player { border-color: transparent; }
+:root[data-style="lolitta"] .player { box-shadow: inset 0 0 0 1px var(--l-mid), 0 0 0 2px var(--l-tab2), 0 0 0 4px var(--l-line), 0 0 0 5px rgba(20,6,10,.5),
+    inset 0 0 0 5px color-mix(in srgb, var(--l-light) 80%, #fff), inset 0 0 0 6px var(--l-lo), inset 0 0 22px rgba(120, 45, 65, .22), 0 -6px 30px rgba(0,0,0,.35); }
+:root[data-style] .player .pinfo { gap: 14px; }
+:root[data-style] .player .meta b { font-size: 20px; }
+:root[data-style] .player .meta span, :root[data-style] .player .meta .art { font-size: 15px; }
+:root[data-style] .player .cover { width: 56px; height: 56px; }
+:root[data-style] .player .pcenter { gap: 6px; }
+:root[data-style] .player .ctrls { gap: 18px; }
+:root[data-style] .player button { width: 40px; height: 40px; margin: 0; }
+:root[data-style] .player .playbtn { width: 56px; height: 56px; margin: 0; }
+:root[data-style] .player .playbtn svg { width: 26px; height: 26px; }
+:root[data-style] .player .ctrls button:not(.playbtn) svg, :root[data-style] .player .likebtn svg { width: 20px; height: 20px; }
+:root[data-style] .player #volBtn svg { width: 22px; height: 22px; }
+@media (max-width: 880px) {
+  :root[data-style] .player { padding: 18px 30px 12px; gap: 12px; grid-template-columns: minmax(110px, 190px) 1fr 88px; }
+  :root[data-style] .player .cover { width: 44px; height: 44px; }
+  :root[data-style] .player .ctrls { gap: 10px; }
+  :root[data-style] .player button { width: 36px; height: 36px; }
+  :root[data-style] .player .playbtn { width: 48px; height: 48px; }
+}
+@media (max-height: 680px) { :root[data-style] .player { padding-top: 16px; } }
+
+/* «Анимации интерфейса» выключены. Правила лежат в слое: важное (!important) правило из слоя сильнее любого
+   важного правила вне слоёв, какой бы ни была специфичность. Поэтому выключатель перебивает и CSS приложения,
+   и CSS своих тем (.wmt) — даже «:root[data-style="…"] .tab { transition: … !important }».
+   Слой объявлен здесь, раньше CSS тем, а слои тем переименовываются (theme.js) — тема не может попасть в этот слой. */
+@layer app-motion-off {
+  :root[data-anim="off"] *, :root[data-anim="off"] *::before, :root[data-anim="off"] *::after {
+    animation: none !important; transition: none !important; scroll-behavior: auto !important;
+  }
+  /* при наведении и нажатии ничего не сдвигается, не качается и не увеличивается (подсветка и цвет остаются).
+     Сдвиги из CSS своих тем отключает theme.js: в теме они срабатывают только при data-anim="on". */
+  :root[data-anim="off"] .wavebtn:hover, :root[data-anim="off"] .wavebtn:active,
+  :root[data-anim="off"] .tab:hover, :root[data-anim="off"] .tab:active,
+  :root[data-anim="off"] .nav:hover, :root[data-anim="off"] .nav:active,
+  :root[data-anim="off"] .list li:hover, :root[data-anim="off"] .list li:hover img, :root[data-anim="off"] .list .likebtn:hover,
+  :root[data-anim="off"] .stalbum:hover img, :root[data-anim="off"] .stperson:hover img, :root[data-anim="off"] .stpic:hover img,
+  :root[data-anim="off"] .recadd:hover, :root[data-anim="off"] .vizfsbtn:hover, :root[data-anim="off"] .best .bplay:hover {
+    transform: none !important;
+  }
+}
+
+:root[data-style="lolitta"] .settings > .card, :root[data-style="lolitta"] .stats .card { background: var(--page-tint); }
+
+:root[data-style] .stations { width: min(420px, 92vw); box-sizing: border-box; }
+:root[data-style] .stations .chips { display: flex; flex-wrap: nowrap; gap: 3px; min-width: 0; }
+:root[data-style] .stations .chip { flex: 1 1 auto; min-width: 0; padding: 5px 4px; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; }
+.morebtn { flex: none; width: 30px; height: 34px; margin-left: -8px; display: grid; place-items: center; border-radius: 50%; color: var(--muted); opacity: .5; transition: opacity .15s, color .15s, background .15s; }
+.morebtn svg { width: 20px; height: 20px; }
+.list li:hover .morebtn, .morebtn.open { opacity: 1; }
+.morebtn:hover, .morebtn.open { color: var(--text); background: rgba(255,255,255,.08); }
+
+.tmenu {
+  position: fixed; z-index: 60; min-width: 190px; padding: 6px; border-radius: 14px;
+  display: flex; flex-direction: column; gap: 2px;
+  background: rgba(18, 12, 38, 0.96); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 calc(var(--glow) * .5) color-mix(in srgb, var(--glow-c) 30%, transparent);
+}
+.tmenu[hidden] { display: none; }
+.tmenu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border-radius: 10px; text-align: left; font-size: 14px; color: var(--text); }
+.tmenu button svg { width: 18px; height: 18px; flex: none; color: var(--accent); }
+.tmenu button:hover { background: rgba(255,255,255,.1); }
+
+/* место — во внутреннем углу между нижней и боковой панелью: --toast-* ставит placeToast() в main.js
+   (по замеру .side и .player); без замера (панели спрятаны темой) — по центру над плеером, как раньше */
+.toast {
+  position: fixed; z-index: 70; left: var(--toast-l, 50%); right: var(--toast-r, auto); bottom: var(--toast-b, 120px);
+  transform: var(--toast-t, translateX(-50%));
+  max-width: var(--toast-w, min(640px, calc(100vw - 32px))); padding: 10px 16px; border-radius: 12px;
+  font-size: 13px; color: var(--text); overflow-wrap: anywhere; text-align: center;
+  background: rgba(18, 12, 38, 0.96); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+.toast[hidden] { display: none; }
+
+.dlpath { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: 12px; background: rgba(0,0,0,.18); min-width: 0; }
+.dlpath small { color: var(--muted); font-size: 12px; }
+.dlpath span { font-size: 14px; overflow-wrap: anywhere; }
+.nav:disabled { opacity: .4; cursor: default; }
+
+:root[data-style="royal"] .tmenu, :root[data-style="royal"] .toast { border-radius: 4px; background: rgba(16, 12, 10, .97); border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent); box-shadow: 0 10px 30px rgba(0,0,0,.6); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-style="royal"] .tmenu button { border-radius: 2px; }
+:root[data-style="royal"] .tmenu button:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+:root[data-style="royal"] .dlpath { border-radius: 4px; }
+
+:root[data-style="steam"] .tmenu, :root[data-style="steam"] .toast { border-radius: 3px; border: 1px solid var(--ln); background: rgba(18, 13, 9, .97); box-shadow: 0 10px 28px rgba(0,0,0,.65); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-style="steam"] .tmenu button { border-radius: 2px; }
+:root[data-style="steam"] .tmenu button svg { color: var(--m); }
+:root[data-style="steam"] .tmenu button:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+:root[data-style="steam"] .morebtn { color: var(--muted); }
+:root[data-style="steam"] .dlpath { border-radius: 3px; }
+
+:root[data-style="lolitta"] .tmenu, :root[data-style="lolitta"] .toast {
+  border-radius: 12px; border: 1px solid var(--l-mid); -webkit-backdrop-filter: none; backdrop-filter: none; color: var(--l-ink);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--l-light) 70%, #fff), var(--l-light2));
+  box-shadow: 0 0 0 2px var(--l-tab2), 0 0 0 3px var(--l-line), inset 0 0 0 3px rgba(255,255,255,.35), 0 8px 22px rgba(0,0,0,.45);
+}
+:root[data-style="lolitta"] .tmenu button { color: var(--l-ink); }
+:root[data-style="lolitta"] .tmenu button svg { color: var(--l-lo); }
+:root[data-style="lolitta"] .tmenu button:hover { background: color-mix(in srgb, var(--l-mid) 25%, transparent); }
+:root[data-style="lolitta"] .list .morebtn { margin-left: -6px; opacity: 1; color: var(--lo-on-tab, var(--l-hi)); }
+:root[data-style="lolitta"] .list .morebtn:hover, :root[data-style="lolitta"] .list .morebtn.open { background: color-mix(in srgb, var(--l-mid) 30%, transparent); }
+
+:root[data-anim="off"] .morebtn { transition: none; }
+
+.dlbtn { flex: none; margin-left: -6px; display: grid; place-items: center; border-radius: 50%; color: var(--muted); opacity: .75; transition: opacity .15s, color .15s, background .15s; }
+.dlbtn svg { width: 20px; height: 20px; }
+.dlbtn:hover:not(:disabled) { opacity: 1; color: var(--text); }
+.dlbtn:disabled { opacity: .3; cursor: default; }
+.dlbtn:disabled:hover { background: none; }
+.dlbtn.busy { opacity: 1; color: var(--accent); animation: dlPulse 1s ease-in-out infinite; }
+@keyframes dlPulse { 50% { opacity: .35; } }
+:root[data-anim="off"] .dlbtn, :root[data-anim="off"] .dlbtn.busy { animation: none; transition: none; }
+:root[data-anim="off"] .dlbtn.busy { opacity: .5; }
+@media (max-width: 880px) {
+  .player { grid-template-columns: minmax(150px, 230px) 1fr 88px; }
+  :root[data-style] .player { grid-template-columns: minmax(150px, 230px) 1fr 88px; }
+  .pinfo, :root[data-style] .player .pinfo { gap: 8px; }
+}
+
+:root[data-style="royal"] .player #disBtn { color: var(--muted); border-radius: 2px; }
+:root[data-style="royal"] .player #disBtn:hover:not(:disabled) { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+:root[data-style="steam"] .player #disBtn { color: var(--muted); opacity: 1; }
+:root[data-style="steam"] .player #disBtn:hover:not(:disabled) { color: var(--m-hi); }
+:root[data-style="steam"] .player #disBtn:disabled { opacity: .35; }
+:root[data-style="steam"] .player #disBtn.busy { color: var(--a2-hi); }
+
+:root[data-style="lolitta"] .player #disBtn { color: var(--l-lo); opacity: 1; }
+:root[data-style="lolitta"] .player #disBtn:hover:not(:disabled) { color: var(--l-ink); background: rgba(255,255,255,.4); }
+:root[data-style="lolitta"] .player #disBtn:disabled { opacity: .4; }
+:root[data-style="lolitta"] .player #disBtn.busy { color: var(--accent2); filter: drop-shadow(0 0 4px rgba(255,255,255,.7)); }
+:root[data-style="royal"] .player #disBtn.busy { color: var(--accent); }
+
+.tmenu { max-width: min(320px, calc(100vw - 16px)); }
+.tmenu .mi .mt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tmenu .miarrow { font-style: normal; color: var(--muted); font-size: 18px; line-height: 1; }
+.tmenu .mi.danger, .tmenu .mi.danger svg { color: #ff8a8a; }
+.tmenu .mhead { display: flex; align-items: center; gap: 6px; padding: 2px 4px 6px; border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: 4px; }
+.tmenu .mhead b { font-size: 13px; font-weight: 600; }
+.tmenu .mback { width: 28px; height: 28px; padding: 0; justify-content: center; border-radius: 50%; flex: none; color: var(--muted); }
+.tmenu .msep { border: 0; border-top: 1px solid rgba(255,255,255,.1); margin: 4px 6px; }
+.tmenu .mnote { margin: 4px 10px 6px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+/* подзаголовок группы сам её отделяет: линия перед ним лишняя, вместо неё — небольшой отступ */
+.tmenu .msep:has(+ .mnote) { display: none; }
+.tmenu > :not(.msep) + .mnote { margin-top: 10px; }
+.tmenu .mscroll { max-height: min(46vh, 330px); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.tmenu .mpl { padding: 6px 10px; }
+.tmenu .mpl small { flex: none; font-size: 11px; color: var(--muted); }
+.plcover.mthumb { width: 32px; height: 32px; border-radius: 6px; flex: none; }
+
+.plcover { display: grid; overflow: hidden; background: rgba(255,255,255,.08); border-radius: 10px; }
+.plcover.mosaic { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.plcover img, .simcard .plcover img, :root[data-style] .simcard .plcover img { width: 100%; height: 100%; aspect-ratio: auto; object-fit: cover; margin: 0; border-radius: 0; border: 0; outline: 0; background: none; display: block; }
+.plcover .plnone { display: grid; place-items: center; font-style: normal; font-size: 40%; color: var(--muted); }
+.plcover.mthumb .plnone { font-size: 14px; }
+.plcover.big { width: 100%; aspect-ratio: 1; margin-bottom: 6px; }
+.plcover.big .plnone { font-size: 46px; }
+
+.plpage { margin-top: 4px; }
+.plgrid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.plcard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.plcreate { white-space: nowrap; }
+
+.plbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+.plbar .nav { padding: 8px 16px; }
+.nav.danger { color: #ff9b9b; }
+.nav.danger:hover:not(:disabled) { background: color-mix(in srgb, #ff4d4d 18%, transparent); }
+.nav.active.danger { color: #fff; background: linear-gradient(90deg, #c0392b, #8e1f1f); box-shadow: 0 0 14px rgba(192, 57, 43, .45); text-shadow: none; }
+
+.grip { flex: none; width: 18px; height: 34px; margin: 0 -8px 0 -4px; display: grid; place-items: center; color: var(--muted); opacity: .35; cursor: grab; touch-action: none; transition: opacity .15s; }
+.grip svg { width: 18px; height: 18px; }
+.list li:hover .grip { opacity: .9; }
+body.pl-drag, body.pl-drag * { cursor: grabbing !important; -webkit-user-select: none; user-select: none; }
+.list li.dragging { opacity: .45; }
+.list li.drop-before { box-shadow: inset 0 3px 0 var(--glow-c); }
+.list li.drop-after { box-shadow: inset 0 -3px 0 var(--glow-c); }
+.list li.flash { animation: plFlash 1.6s ease-out; }
+@keyframes plFlash { 0%, 30% { background: color-mix(in srgb, var(--accent) 28%, transparent); } 100% { background: transparent; } }
+
+.plrecshead { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.plrecshead h3 { margin: 0; flex: 1; }
+.plrecshead .nav { padding: 7px 14px; font-size: 13px; }
+.recadd { flex: none; width: 34px; height: 34px; margin-left: auto; display: grid; place-items: center; border-radius: 50%; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); transition: background .15s, transform .15s; }
+.recadd svg { width: 20px; height: 20px; }
+.recadd:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 30%, transparent); transform: scale(1.06); }
+.recadd:disabled { opacity: .4; cursor: default; }
+.recadd + .likebtn { margin-left: 0; }
+.list li.added { opacity: .5; }
+
+.toast { display: flex; align-items: center; gap: 10px; text-align: left; }
+.toast .tico { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-weight: 700; font-size: 13px; }
+.toast.ok .tico { color: #0d2b14; background: #6fdc8c; }
+.toast.err .tico { color: #fff; background: #e05252; }
+.toast.err { border-color: rgba(224, 82, 82, .7); }
+.toast .tact { flex: none; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--text); background: rgba(255,255,255,.12); }
+.toast .tact:hover { background: rgba(255,255,255,.22); }
+
+.login.modal { z-index: 80; }
+.modalbox { width: min(440px, calc(100vw - 32px)); }
+.modalbox h2 { margin: 0; font-size: 22px; }
+.modalbox p { margin: 0; line-height: 1.5; color: var(--muted); }
+.modalbox .status { min-height: 0; color: #ff9b9b; }
+.modalbox .status:empty { display: none; }
+
+:root[data-anim="off"] .list li.flash { animation: none; background: color-mix(in srgb, var(--accent) 18%, transparent); }
+:root[data-anim="off"] .grip, :root[data-anim="off"] .recadd { transition: none; }
+
+:root[data-style="royal"] .plcover { border-radius: 3px; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+:root[data-style="royal"] .plcover.mthumb { border-radius: 2px; }
+:root[data-style="royal"] .recadd { border-radius: 3px; }
+:root[data-style="royal"] .toast .tact { border-radius: 3px; }
+:root[data-style="royal"] .tmenu .mhead b { font-family: var(--font-display); letter-spacing: .04em; color: #efe3c0; }
+:root[data-style="royal"] .plrecshead h3::before, :root[data-style="royal"] .plrecshead h3::after { max-width: 40px; }
+:root[data-style="royal"] .nav.danger { color: #e8a090; }
+
+:root[data-style="steam"] .plcover { border-radius: 2px; border: 1px solid var(--ls); }
+:root[data-style="steam"] .recadd { border-radius: 3px; color: var(--m-hi); background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid var(--ln); }
+:root[data-style="steam"] .toast .tact { border-radius: 3px; border: 1px solid var(--ln); }
+:root[data-style="steam"] .tmenu .mhead b { font-family: var(--font-display); color: #e8d6b4; }
+:root[data-style="steam"] .grip { color: var(--m); }
+:root[data-style="steam"] .list li.drop-before { box-shadow: inset 0 3px 0 var(--m-hi); }
+:root[data-style="steam"] .list li.drop-after { box-shadow: inset 0 -3px 0 var(--m-hi); }
+
+:root[data-style="lolitta"] .plcover { border-radius: 4px; }
+:root[data-style="lolitta"] .tmenu .mhead { border-bottom-color: var(--l-line); }
+:root[data-style="lolitta"] .tmenu .mhead b, :root[data-style="lolitta"] .tmenu .mback { color: var(--l-ink); }
+:root[data-style="lolitta"] .tmenu .mnote, :root[data-style="lolitta"] .tmenu .mpl small, :root[data-style="lolitta"] .tmenu .miarrow { color: var(--l-ink2, var(--l-ink)); }
+:root[data-style="lolitta"] .tmenu .msep { border-top-color: var(--l-line); }
+:root[data-style="lolitta"] .tmenu .mi.danger, :root[data-style="lolitta"] .tmenu .mi.danger svg { color: #b0303c; }
+:root[data-style="lolitta"] .toast .tact { color: var(--l-ink); background: color-mix(in srgb, var(--l-mid) 35%, transparent); }
+:root[data-style="lolitta"] .toast .tact:hover { background: color-mix(in srgb, var(--l-mid) 55%, transparent); }
+:root[data-style="lolitta"] .recadd { color: var(--lo-on-mid, #fff7f7); background: radial-gradient(circle at 50% 30%, var(--l-hi), var(--l-mid) 58%, var(--l-lo)); box-shadow: 0 0 0 1px var(--l-lo), 0 2px 5px rgba(0,0,0,.4); }
+:root[data-style="lolitta"] .grip { color: var(--l-hi); }
+
+.gotmark { flex: none; margin-left: auto; width: 26px; height: 26px; display: grid; place-items: center; color: var(--accent); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--glow-c) 65%, transparent)); }
+.gotmark svg { width: 24px; height: 24px; }
+.gotmark + .likebtn, .gotmark + .recadd { margin-left: 0; }
+.list li.got .a { color: color-mix(in srgb, var(--accent) 55%, var(--muted)); }
+.dlbtn.on { color: var(--accent); opacity: 1; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--btn-glow) 60%, transparent)); }
+
+:root[data-style="royal"] .gotmark { color: var(--accent); filter: none; border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent); border-radius: 2px; width: 26px; height: 26px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+:root[data-style="royal"] .gotmark svg { width: 20px; height: 20px; }
+:root[data-style="royal"] .list li.got .a { color: color-mix(in srgb, var(--accent) 65%, var(--muted)); }
+:root[data-style="royal"] .player #disBtn.on { color: var(--accent); filter: none; }
+
+:root[data-style="steam"] .gotmark { color: var(--m-hi); filter: none; border: 1px solid var(--ln); border-radius: 50%; width: 26px; height: 26px; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--accent) 35%, transparent), rgba(0,0,0,.35)); box-shadow: inset 0 1px 2px rgba(255,255,255,.15), 0 1px 2px rgba(0,0,0,.6); }
+:root[data-style="steam"] .gotmark svg { width: 20px; height: 20px; }
+:root[data-style="steam"] .list li.got .a { color: color-mix(in srgb, var(--m-hi) 55%, var(--muted)); }
+:root[data-style="steam"] .player #disBtn.on { color: var(--a2-hi); filter: none; }
+
+:root[data-style="lolitta"] .gotmark { color: var(--lo-on-mid, #fff7f7); filter: none; border-radius: 50%; width: 26px; height: 26px; background: radial-gradient(circle at 50% 30%, var(--l-hi), var(--l-mid) 58%, var(--l-lo)); box-shadow: 0 0 0 1px var(--l-lo), 0 0 0 2px color-mix(in srgb, var(--l-pearl) 55%, transparent), 0 1px 3px rgba(0,0,0,.4); }
+:root[data-style="lolitta"] .gotmark svg { width: 20px; height: 20px; }
+:root[data-style="lolitta"] .list li.got .a { color: color-mix(in srgb, var(--accent) 60%, var(--text)); }
+:root[data-style="lolitta"] .player #disBtn.on { color: var(--accent2); filter: drop-shadow(0 0 4px rgba(255,255,255,.7)); }
+

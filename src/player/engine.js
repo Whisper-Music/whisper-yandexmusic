@@ -7,6 +7,12 @@
 //
 // Устройство отказало (занято, запрещён монопольный режим, не тот формат) — до следующего включения режима
 // играем в общем режиме, а трек сразу перезапускается обычным путём (main.js: EngineFallback).
+//
+// DJ-переход (transitions.js): прошлый плеер отпускается (_detach — его команды движку больше не идут), а новый
+// грузится через engine_dj — Rust подмешивает его к играющему. «DJ: …» — не вышло: грузим обычным engine_load.
+import { $, invoke, lsJSON } from "../app/base.js";
+import { closeTrackMenu, showToast } from "../app/menu.js";
+import { play } from "./core.js";
 (() => {
   const KEY = "ym_engine";
   let want = lsJSON(KEY, false, (v) => typeof v === "boolean");
@@ -95,11 +101,13 @@
     pause() {
       if (this.paused) return;
       this.paused = true;
-      if (this._loaded) invoke("engine_pause").catch(() => {});
+      if (this._loaded && !this._detached) invoke("engine_pause").catch(() => {});
       this._emit("pause");
     }
     load() { if (!this._track) this._unload(); }
     removeAttribute(name) { if (name === "src") this._unload(); }
+    // DJ-переход: трек доигрывает внутри движка вместе со следующим — этот плеер больше ничего движку не шлёт
+    _detach() { this._detached = true; if (active === this) active = null; }
     _unload() {
       this._req++;
       if (active === this) { active = null; invoke("engine_stop", { gen: this._gen || null }).catch(() => {}); }
@@ -110,8 +118,15 @@
       this.paused = false; this._emit("play");
       active = this;
       let r;
+      const dj = window.xfTakeNativeDj?.();
       try {
-        r = await invoke("engine_load", { kind: tr.kind, id: tr.id, quality: tr.quality || null, device: await deviceId(), start: this._start || 0, gain: this._vol });
+        if (dj) {
+          try {
+            r = await invoke("engine_dj", { kind: tr.kind, id: tr.id, quality: tr.quality || null, start: dj.start || this._start || 0, len: dj.len });
+            this._pos = dj.start || this._start || 0;
+          } catch (e) { if (!/^DJ:/.test(String(e?.message || e))) throw e; console.warn(String(e)); }
+        }
+        r ||= await invoke("engine_load", { kind: tr.kind, id: tr.id, quality: tr.quality || null, device: await deviceId(), start: this._start || 0, gain: this._vol });
       } catch (e) {
         if (my !== this._req) throw Object.assign(new Error("устарело"), { name: "AbortError" });
         if (active === this) active = null;

@@ -587,7 +587,12 @@ pub fn web_open(app: AppHandle, window: tauri::WebviewWindow) -> Result<String, 
     let key = new_key()?;
     *KEY.lock().unwrap_or_else(|e| e.into_inner()) = key.clone();
     let url = format!("http://127.0.0.1:{port}/__web/start?k={key}");
-    app.opener().open_url(&url, None::<&str>).map_err(|e| format!("браузер не открылся: {e}"))?;
+    // автотесты (tests/web): при замерах (WHISPER_PERF) и WHISPER_WEB_URL=<файл> адрес вкладки пишется в файл, а не
+    // открывается в браузере — его открывает Playwright. В обычном запуске переменных нет и ветка не работает.
+    match test_url_file() {
+        Some(f) => std::fs::write(f, &url).map_err(|e| format!("адрес для автотестов не записался: {e}"))?,
+        None => app.opener().open_url(&url, None::<&str>).map_err(|e| format!("браузер не открылся: {e}"))?,
+    }
     WEB.store(true, SeqCst);
     // окно — переходник: без интерфейса и плеера
     let mut u = window.url().map_err(|e| e.to_string())?;
@@ -597,6 +602,11 @@ pub fn web_open(app: AppHandle, window: tauri::WebviewWindow) -> Result<String, 
     let _ = window.hide();
     window.navigate(u).map_err(|e| e.to_string())?;
     Ok(url)
+}
+
+fn test_url_file() -> Option<std::path::PathBuf> {
+    std::env::var_os("WHISPER_PERF").filter(|v| !v.is_empty())?;
+    std::env::var_os("WHISPER_WEB_URL").filter(|v| !v.is_empty()).map(Into::into)
 }
 
 /// Вкладка → окно: переходник забирает настройки и потом зовёт web_finish. Вкладке — «вернулись в приложение».

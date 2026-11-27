@@ -1,0 +1,317 @@
+/* steam — Встроенный стиль «Стимпанк» (основа steam).
+   Часть бывшего styles.css: файлы look/styles/01…11 подключаются строго по номерам (порядок = сила правил). */
+.sp-steam { border-radius: 2px; background: linear-gradient(180deg, #241b13, #120d09); box-shadow: inset 0 0 0 1px #9a7444, inset 0 0 0 5px #120d09, inset 0 0 0 6px rgba(154,116,68,.45); }
+:root[data-style="steam"] {
+  --text: #e6d5b5; --muted: #9c876a;
+  --font-display: "Constantia", "Cambria", "Palatino Linotype", Georgia, serif;
+  --gear: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath fill-rule='evenodd' d='M188.45 90.13 L198.93 96.41 L198.93 103.59 L188.45 109.87 L188.24 111.58 L196.92 120.19 L195.20 127.16 L183.52 130.75 L182.91 132.36 L189.27 142.80 L185.94 149.15 L173.73 149.85 L172.75 151.26 L176.43 162.92 L171.67 168.29 L159.66 166.04 L158.37 167.18 L159.15 179.38 L153.25 183.46 L142.12 178.40 L140.60 179.20 L138.44 191.23 L131.73 193.78 L122.13 186.20 L120.46 186.62 L115.49 197.78 L108.36 198.65 L100.86 189.00 L99.14 189.00 L91.64 198.65 L84.51 197.78 L79.54 186.62 L77.87 186.20 L68.27 193.78 L61.56 191.23 L59.40 179.20 L57.88 178.40 L46.75 183.46 L40.85 179.38 L41.63 167.18 L40.34 166.04 L28.33 168.29 L23.57 162.92 L27.25 151.26 L26.27 149.85 L14.06 149.15 L10.73 142.80 L17.09 132.36 L16.48 130.75 L4.80 127.16 L3.08 120.19 L11.76 111.58 L11.55 109.87 L1.07 103.59 L1.07 96.41 L11.55 90.13 L11.76 88.42 L3.08 79.81 L4.80 72.84 L16.48 69.25 L17.09 67.64 L10.73 57.20 L14.06 50.85 L26.27 50.15 L27.25 48.74 L23.57 37.08 L28.33 31.71 L40.34 33.96 L41.63 32.82 L40.85 20.62 L46.75 16.54 L57.88 21.60 L59.40 20.80 L61.56 8.77 L68.27 6.22 L77.87 13.80 L79.54 13.38 L84.51 2.22 L91.64 1.35 L99.14 11.00 L100.86 11.00 L108.36 1.35 L115.49 2.22 L120.46 13.38 L122.13 13.80 L131.73 6.22 L138.44 8.77 L140.60 20.80 L142.12 21.60 L153.25 16.54 L159.15 20.62 L158.37 32.82 L159.66 33.96 L171.67 31.71 L176.43 37.08 L172.75 48.74 L173.73 50.15 L185.94 50.85 L189.27 57.20 L182.91 67.64 L183.52 69.25 L195.20 72.84 L196.92 79.81 L188.24 88.42Z M28.00 100.00 a72 72 0 1 0 144 0 a72 72 0 1 0 -144 0Z'/%3E%3Cpath d='M122.00 108.00 L176.00 110.00 L176.00 90.00 L122.00 92.00Z M104.07 123.05 L129.34 170.82 L146.66 160.82 L117.93 115.05Z M82.07 115.05 L53.34 160.82 L70.66 170.82 L95.93 123.05Z M78.00 92.00 L24.00 90.00 L24.00 110.00 L78.00 108.00Z M95.93 76.95 L70.66 29.18 L53.34 39.18 L82.07 84.95Z M117.93 84.95 L146.66 39.18 L129.34 29.18 L104.07 76.95Z '/%3E%3Cpath fill-rule='evenodd' d='M70.00 100.00 a30 30 0 1 0 60 0 a30 30 0 1 0 -60 0Z M89.00 100.00 a11 11 0 1 0 22 0 a11 11 0 1 0 -22 0Z M114.12 110.00 a3.2 3.2 0 1 0 6.4 0 a3.2 3.2 0 1 0 -6.4 0Z M96.80 120.00 a3.2 3.2 0 1 0 6.4 0 a3.2 3.2 0 1 0 -6.4 0Z M79.48 110.00 a3.2 3.2 0 1 0 6.4 0 a3.2 3.2 0 1 0 -6.4 0Z M79.48 90.00 a3.2 3.2 0 1 0 6.4 0 a3.2 3.2 0 1 0 -6.4 0Z M96.80 80.00 a3.2 3.2 0 1 0 6.4 0 a3.2 3.2 0 1 0 -6.4 0Z M114.12 90.00 a3.2 3.2 0 1 0 6.4 0 a3.2 3.2 0 1 0 -6.4 0Z'/%3E%3C/svg%3E");
+  --i-wave: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 10h2v4H3zM7 6h2v12H7zM11 3h2v18h-2zM15 7h2v10h-2zM19 10h2v4h-2z'/%3E%3C/svg%3E"); --i-heart: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21l-1.4-1.3C5.4 15 2 12 2 8.5 2 5.6 4.3 3.5 7 3.5c1.7 0 3.4.8 5 2.500 1.600-1.700 3.300-2.500 5-2.500 2.700 0 5 2.100 5 5 0 3.500-3.400 6.500-8.600 11.200z'/%3E%3C/svg%3E"); --i-stats: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12h4v8H4zM10 4h4v16h-4zM16 9h4v11h-4z'/%3E%3C/svg%3E"); --i-user: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21c0-4.400 3.600-7 8-7s8 2.600 8 7z'/%3E%3C/svg%3E");
+  --m: color-mix(in srgb, var(--accent) 80%, #2a1c10);
+  --m-hi: color-mix(in srgb, var(--accent) 60%, #fff3dc);
+  --m-lo: color-mix(in srgb, var(--accent) 40%, #0a0604);
+  --ln: color-mix(in srgb, var(--accent) 60%, transparent);
+  --ls: color-mix(in srgb, var(--accent) 26%, transparent);
+  --plate-a: rgba(30, 23, 16, var(--panel-a)); --plate-b: rgba(14, 10, 7, var(--panel-a));
+  --rivet: radial-gradient(circle at 50% 50%, var(--m-hi) 0 1.1px, var(--m) 2.6px, var(--m-lo) 4.2px, #050302 4.8px, transparent 5.4px);
+  --search-ic: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='10.5' cy='10.5' r='6' fill='none' stroke='%23a98458' stroke-width='2'/%3E%3Cpath d='M15 15l5 5' stroke='%23a98458' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+:root[data-style="steam"] body {
+  font-family: Georgia, "Cambria", serif;
+  background:
+    radial-gradient(1100px 700px at 70% 10%, rgba(120, 80, 40, .14), transparent 65%),
+    radial-gradient(900px 600px at 50% 115%, rgba(0, 0, 0, .55), transparent 60%),
+    linear-gradient(180deg, #120d09, #19120c 55%, #0d0906);
+}
+
+:root[data-style="steam"] .panel,
+:root[data-style="steam"] .list {
+  position: relative; isolation: isolate; border-radius: 3px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  border: 1px solid var(--ln);
+  background:
+    var(--rivet) left 4px top 4px / 12px 12px no-repeat,
+    var(--rivet) right 4px top 4px / 12px 12px no-repeat,
+    var(--rivet) left 4px bottom 4px / 12px 12px no-repeat,
+    var(--rivet) right 4px bottom 4px / 12px 12px no-repeat,
+    linear-gradient(var(--m), var(--m)) left 2px top 2px / 26px 2px no-repeat,
+    linear-gradient(var(--m), var(--m)) left 2px top 2px / 2px 26px no-repeat,
+    linear-gradient(var(--m), var(--m)) right 2px top 2px / 26px 2px no-repeat,
+    linear-gradient(var(--m), var(--m)) right 2px top 2px / 2px 26px no-repeat,
+    linear-gradient(var(--m), var(--m)) left 2px bottom 2px / 26px 2px no-repeat,
+    linear-gradient(var(--m), var(--m)) left 2px bottom 2px / 2px 26px no-repeat,
+    linear-gradient(var(--m), var(--m)) right 2px bottom 2px / 26px 2px no-repeat,
+    linear-gradient(var(--m), var(--m)) right 2px bottom 2px / 2px 26px no-repeat,
+    linear-gradient(var(--ls), var(--ls)) left 7px top 7px / calc(100% - 14px) 1px no-repeat,
+    linear-gradient(var(--ls), var(--ls)) left 7px bottom 7px / calc(100% - 14px) 1px no-repeat,
+    linear-gradient(var(--ls), var(--ls)) left 7px top 7px / 1px calc(100% - 14px) no-repeat,
+    linear-gradient(var(--ls), var(--ls)) right 7px top 7px / 1px calc(100% - 14px) no-repeat,
+    linear-gradient(180deg, var(--plate-a), var(--plate-b));
+  box-shadow: 0 0 0 1px rgba(0,0,0,.65), 0 12px 30px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,220,160,.05);
+}
+:root[data-style="steam"] .side { padding: 26px 22px; }
+:root[data-style="steam"] .player { padding: 22px 70px 18px; }
+
+:root[data-style="steam"] .list::after {
+  content: ""; position: absolute; z-index: -1; pointer-events: none; width: var(--q); height: var(--q); opacity: .8;
+  background: radial-gradient(circle at 30% 25%, var(--m-hi), var(--m) 40%, var(--m-lo));
+  -webkit-mask: var(--gear) var(--gx) var(--gy) / calc(var(--q) * 2) calc(var(--q) * 2) no-repeat;
+  mask: var(--gear) var(--gx) var(--gy) / calc(var(--q) * 2) calc(var(--q) * 2) no-repeat;
+}
+:root[data-style="steam"] .list::after { --q: 40px; --gx: 0px; --gy: 0px; right: 0; bottom: 0; opacity: .55; }
+
+:root[data-style="steam"] .side, :root[data-style="steam"] .player { background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-style="steam"] .side::before, :root[data-style="steam"] .player::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  border: 1px solid var(--ln); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px);
+  background:
+    linear-gradient(135deg, transparent 50%, var(--m) 50%, var(--m) calc(50% + 2.5px), transparent calc(50% + 2.5px)) left 0 top 0 / 16px 16px no-repeat,
+    linear-gradient(135deg, transparent 50%, var(--ls) 50%, var(--ls) calc(50% + 1px), transparent calc(50% + 1px)) left 0 top 0 / 34px 34px no-repeat,
+    linear-gradient(var(--m), var(--m)) left 16px top 0 / 20px 2px no-repeat,
+    linear-gradient(var(--m), var(--m)) left 0 top 16px / 2px 20px no-repeat,
+    var(--rivet) left 7px top 7px / 12px 12px no-repeat,
+    linear-gradient(225deg, transparent 50%, var(--m) 50%, var(--m) calc(50% + 2.5px), transparent calc(50% + 2.5px)) right 0 top 0 / 16px 16px no-repeat,
+    linear-gradient(225deg, transparent 50%, var(--ls) 50%, var(--ls) calc(50% + 1px), transparent calc(50% + 1px)) right 0 top 0 / 34px 34px no-repeat,
+    linear-gradient(var(--m), var(--m)) right 16px top 0 / 20px 2px no-repeat,
+    linear-gradient(var(--m), var(--m)) right 0 top 16px / 2px 20px no-repeat,
+    var(--rivet) right 7px top 7px / 12px 12px no-repeat,
+    linear-gradient(45deg, transparent 50%, var(--m) 50%, var(--m) calc(50% + 2.5px), transparent calc(50% + 2.5px)) left 0 bottom 0 / 16px 16px no-repeat,
+    linear-gradient(45deg, transparent 50%, var(--ls) 50%, var(--ls) calc(50% + 1px), transparent calc(50% + 1px)) left 0 bottom 0 / 34px 34px no-repeat,
+    linear-gradient(var(--m), var(--m)) left 16px bottom 0 / 20px 2px no-repeat,
+    linear-gradient(var(--m), var(--m)) left 0 bottom 16px / 2px 20px no-repeat,
+    var(--rivet) left 7px bottom 7px / 12px 12px no-repeat,
+    linear-gradient(315deg, transparent 50%, var(--m) 50%, var(--m) calc(50% + 2.5px), transparent calc(50% + 2.5px)) right 0 bottom 0 / 16px 16px no-repeat,
+    linear-gradient(315deg, transparent 50%, var(--ls) 50%, var(--ls) calc(50% + 1px), transparent calc(50% + 1px)) right 0 bottom 0 / 34px 34px no-repeat,
+    linear-gradient(var(--m), var(--m)) right 16px bottom 0 / 20px 2px no-repeat,
+    linear-gradient(var(--m), var(--m)) right 0 bottom 16px / 2px 20px no-repeat,
+    var(--rivet) right 7px bottom 7px / 12px 12px no-repeat,
+    linear-gradient(var(--ls), var(--ls)) left 27px top 7px / calc(100% - 54px) 1px no-repeat,
+    linear-gradient(var(--ls), var(--ls)) left 27px bottom 7px / calc(100% - 54px) 1px no-repeat,
+    linear-gradient(var(--ls), var(--ls)) left 7px top 27px / 1px calc(100% - 54px) no-repeat,
+    linear-gradient(var(--ls), var(--ls)) right 7px top 27px / 1px calc(100% - 54px) no-repeat,
+    linear-gradient(180deg, var(--plate-a), var(--plate-b));
+  background-origin: border-box;
+}
+
+:root[data-style="steam"] .player { padding: 22px 40px 18px; }
+
+:root[data-style="steam"] .titlebar { background: linear-gradient(rgba(8, 5, 2, .7), rgba(8, 5, 2, 0)); }
+:root[data-style="steam"] .tbtitle { font-family: var(--font-display); letter-spacing: .16em; text-transform: uppercase; color: var(--m-hi); }
+:root[data-style="steam"] .tbbrand { color: var(--m-hi); }
+:root[data-style="steam"] .tbsubtitle { color: var(--muted); }
+:root[data-style="steam"] .tbdot { border-radius: 0; transform: rotate(45deg); background: linear-gradient(135deg, var(--m-hi), var(--m-lo)); box-shadow: 0 0 0 1px #050302; }
+
+:root[data-style="steam"] .tabs {
+  align-items: center; gap: 16px; padding: 16px 0 14px;
+  background:
+    linear-gradient(var(--a2-ln), var(--a2-ln)) 0 3px / 100% 1px no-repeat,
+    linear-gradient(var(--a2-ls), var(--a2-ls)) 0 7px / 100% 1px no-repeat;
+}
+:root[data-style="steam"] .tab {
+  position: relative; isolation: isolate; padding: 11px 30px; flex: none; min-width: 100px; justify-content: center;
+  border: 0; border-radius: 0; outline: 0; background: none; box-shadow: none;
+  color: #dcc7a2; text-transform: uppercase; letter-spacing: .08em;
+  font-family: var(--font-display); font-size: 12.5px; font-weight: 600; text-shadow: 0 1px 1px #000;
+  transition: color .15s;
+}
+:root[data-style="steam"] {
+  --a2: color-mix(in srgb, var(--accent2) 80%, #2a1c10);
+  --a2-hi: color-mix(in srgb, var(--accent2) 60%, #fff3dc);
+  --a2-ln: color-mix(in srgb, var(--accent2) 70%, transparent);
+  --a2-ls: color-mix(in srgb, var(--accent2) 34%, transparent);
+  --a2-lo: color-mix(in srgb, var(--accent2) 40%, #0a0604);
+}
+:root[data-style="steam"] .tab {
+  -webkit-mask: radial-gradient(circle at 0px 0px, transparent 8px, #000 8.5px), radial-gradient(circle at 100% 0px, transparent 8px, #000 8.5px), radial-gradient(circle at 0px 100%, transparent 8px, #000 8.5px), radial-gradient(circle at 100% 100%, transparent 8px, #000 8.5px); -webkit-mask-composite: source-in;
+  mask: radial-gradient(circle at 0px 0px, transparent 8px, #000 8.5px), radial-gradient(circle at 100% 0px, transparent 8px, #000 8.5px), radial-gradient(circle at 0px 100%, transparent 8px, #000 8.5px), radial-gradient(circle at 100% 100%, transparent 8px, #000 8.5px); mask-composite: intersect;
+}
+:root[data-style="steam"] .tab::before, :root[data-style="steam"] .tab::after { content: ""; position: absolute; z-index: -1; pointer-events: none; }
+:root[data-style="steam"] .tab::before { inset: 0; background: var(--a2-ln); transition: background .15s; }
+:root[data-style="steam"] .tab::after {
+  inset: 1px; --sx: 100%; transition: --sx 0s;
+  -webkit-mask: radial-gradient(circle at -1px -1px, transparent 9px, #000 9.5px), radial-gradient(circle at calc(100% - -1px) -1px, transparent 9px, #000 9.5px), radial-gradient(circle at -1px calc(100% - -1px), transparent 9px, #000 9.5px), radial-gradient(circle at calc(100% - -1px) calc(100% - -1px), transparent 9px, #000 9.5px); -webkit-mask-composite: source-in;
+  mask: radial-gradient(circle at -1px -1px, transparent 9px, #000 9.5px), radial-gradient(circle at calc(100% - -1px) -1px, transparent 9px, #000 9.5px), radial-gradient(circle at -1px calc(100% - -1px), transparent 9px, #000 9.5px), radial-gradient(circle at calc(100% - -1px) calc(100% - -1px), transparent 9px, #000 9.5px); mask-composite: intersect;
+  background:
+    linear-gradient(105deg, transparent 38%, rgba(255,232,190,.20) 47%, rgba(255,246,225,.32) 50%, rgba(255,232,190,.20) 53%, transparent 62%) var(--sx) 0 / 260% 100% no-repeat,
+    radial-gradient(circle at -1px -1px, transparent 12.5px, var(--a2-ls) 12.5px 13.5px, transparent 14px) left top / 14px 14px no-repeat,
+    radial-gradient(circle at calc(100% + 1px) -1px, transparent 12.5px, var(--a2-ls) 12.5px 13.5px, transparent 14px) right top / 14px 14px no-repeat,
+    radial-gradient(circle at -1px calc(100% + 1px), transparent 12.5px, var(--a2-ls) 12.5px 13.5px, transparent 14px) left bottom / 14px 14px no-repeat,
+    radial-gradient(circle at calc(100% + 1px) calc(100% + 1px), transparent 12.5px, var(--a2-ls) 12.5px 13.5px, transparent 14px) right bottom / 14px 14px no-repeat,
+    linear-gradient(var(--a2-ls), var(--a2-ls)) left 11px top 4px / calc(100% - 22px) 1px no-repeat,
+    linear-gradient(var(--a2-ls), var(--a2-ls)) left 11px bottom 4px / calc(100% - 22px) 1px no-repeat,
+    linear-gradient(var(--a2-ls), var(--a2-ls)) left 4px top 11px / 1px calc(100% - 22px) no-repeat,
+    linear-gradient(var(--a2-ls), var(--a2-ls)) right 4px top 11px / 1px calc(100% - 22px) no-repeat,
+    linear-gradient(180deg, #221a12, #120d09);
+}
+:root[data-style="steam"] .tab:hover { color: #f2e2c2; }
+:root[data-style="steam"] .tab:hover::before { background: var(--a2); }
+:root[data-style="steam"] .tab.active { color: #fbecd0; }
+:root[data-style="steam"] .tab.active::before { background: var(--a2-hi); }
+:root[data-style="steam"] .tab.active::after {
+  background:
+    linear-gradient(105deg, transparent 38%, rgba(255,232,190,.20) 47%, rgba(255,246,225,.32) 50%, rgba(255,232,190,.20) 53%, transparent 62%) var(--sx) 0 / 260% 100% no-repeat,
+    radial-gradient(circle, transparent 0 2.5px, var(--a2-hi) 3px 4.5px, transparent 5px) left 10px center / 14px 14px no-repeat,
+    radial-gradient(circle at -1px -1px, transparent 12.5px, var(--a2-ln) 12.5px 13.5px, transparent 14px) left top / 14px 14px no-repeat,
+    radial-gradient(circle at calc(100% + 1px) -1px, transparent 12.5px, var(--a2-ln) 12.5px 13.5px, transparent 14px) right top / 14px 14px no-repeat,
+    radial-gradient(circle at -1px calc(100% + 1px), transparent 12.5px, var(--a2-ln) 12.5px 13.5px, transparent 14px) left bottom / 14px 14px no-repeat,
+    radial-gradient(circle at calc(100% + 1px) calc(100% + 1px), transparent 12.5px, var(--a2-ln) 12.5px 13.5px, transparent 14px) right bottom / 14px 14px no-repeat,
+    linear-gradient(var(--a2-ln), var(--a2-ln)) left 11px top 4px / calc(100% - 22px) 1px no-repeat,
+    linear-gradient(var(--a2-ln), var(--a2-ln)) left 11px bottom 4px / calc(100% - 22px) 1px no-repeat,
+    linear-gradient(var(--a2-ln), var(--a2-ln)) left 4px top 11px / 1px calc(100% - 22px) no-repeat,
+    linear-gradient(var(--a2-ln), var(--a2-ln)) right 4px top 11px / 1px calc(100% - 22px) no-repeat,
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 30%, #1c140d), color-mix(in srgb, var(--accent) 12%, #0e0a06));
+}
+:root[data-style="steam"] .tab i { margin-left: 6px; font-size: 10px; opacity: .55; }
+
+:root[data-style="steam"] .nav, :root[data-style="steam"] .chip, :root[data-style="steam"] .pill {
+  border-radius: 3px; letter-spacing: .02em; color: var(--text);
+  border: 1px solid var(--ls); background: linear-gradient(180deg, #1f1811, #120d09);
+  box-shadow: inset 0 1px 0 rgba(255,220,160,.05);
+  transition: border-color .15s, background .15s;
+}
+:root[data-style="steam"] .chip, :root[data-style="steam"] .pill { color: var(--muted); }
+:root[data-style="steam"] .nav:hover:not(:disabled):not(.active), :root[data-style="steam"] .chip:hover, :root[data-style="steam"] .pill:hover { border-color: var(--ln); color: var(--text); background: linear-gradient(180deg, #2a2017, #161009); }
+:root[data-style="steam"] .nav.active, :root[data-style="steam"] .chip.active, :root[data-style="steam"] .pill.active, :root[data-style="steam"] .stations .pill.active {
+  color: #fbecd0; font-weight: 600; text-shadow: 0 1px 1px #000; border-color: var(--a2-hi);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent2) 48%, #1a120b), color-mix(in srgb, var(--accent2) 24%, #0d0905));
+  box-shadow: inset 0 1px 0 rgba(255,230,180,.14);
+}
+:root[data-style="steam"] .side .nav { display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
+:root[data-style="steam"] .side .nav::before {
+  content: ""; width: 20px; height: 20px; flex: none; background: var(--m);
+  -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat;
+}
+:root[data-style="steam"] .side .nav.active::before { background: #fbecd0; }
+:root[data-style="steam"] #wave { --ic: var(--i-wave); }
+:root[data-style="steam"] #likes { --ic: var(--i-heart); }
+:root[data-style="steam"] #statsBtn { --ic: var(--i-stats); }
+:root[data-style="steam"] #settingsBtn { --ic: var(--gear); }
+:root[data-style="steam"] #studioBtn { --ic: var(--ly-i-studio); }
+:root[data-style="steam"] #friendsBtn { --ic: var(--ly-i-friends); }
+:root[data-style="steam"] #profile { --ic: var(--i-user); }
+:root[data-style="steam"] .search, :root[data-style="steam"] input[type=password], :root[data-style="steam"] .field {
+  border-radius: 3px; border: 1px solid var(--ln); font-family: inherit;
+  background: var(--search-ic) 12px center / 16px 16px no-repeat, rgba(0,0,0,.45);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.6);
+}
+:root[data-style="steam"] .search { padding-left: 38px; }
+:root[data-style="steam"] input[type=password], :root[data-style="steam"] .field { background: rgba(0,0,0,.45); }
+:root[data-style="steam"] .search:focus { border-color: var(--m-hi); box-shadow: inset 0 2px 5px rgba(0,0,0,.6); }
+
+:root[data-style="steam"] .side .nav.active {
+  border-color: var(--a2-hi);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent2) 50%, #1a120b), color-mix(in srgb, var(--accent2) 24%, #0d0905));
+  box-shadow: inset 0 1px 0 rgba(255,230,180,.14), inset 0 0 0 3px rgba(0,0,0,.25), inset 0 0 0 4px var(--a2-ls);
+}
+
+:root[data-style="steam"] .player .playbtn, :root[data-style="steam"] .wavebtn, :root[data-style="steam"] .fbtns .playbtn {
+  color: #f3e3c3; text-shadow: none;
+  background: radial-gradient(circle at 50% 35%, #2c2218, #0e0a07 75%);
+  box-shadow: 0 0 0 1px #050302, 0 0 0 3px var(--a2), 0 0 0 4px #050302, 0 0 0 7px var(--a2-ls), 0 6px 16px rgba(0,0,0,.7), inset 0 2px 6px rgba(0,0,0,.7);
+}
+:root[data-style="steam"] .player .playbtn { width: 50px; height: 50px; }
+:root[data-style="steam"] .player .playbtn:hover, :root[data-style="steam"] .fbtns .playbtn:hover { background: radial-gradient(circle at 50% 35%, #382b1e, #120d09 75%); filter: none; }
+:root[data-style="steam"] .player button:not(.playbtn):not(.likebtn) { color: var(--m); }
+:root[data-style="steam"] .player button:not(.playbtn):hover { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--m-hi); }
+:root[data-style="steam"] .modebtn.on { color: var(--a2-hi); filter: none; }
+:root[data-style="steam"] .player .cover { border-radius: 2px; border: 1px solid var(--ln); box-shadow: 0 0 0 1px #050302; }
+
+:root[data-style="steam"] input[type=range]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.5); background: linear-gradient(90deg, var(--accent) var(--p, 0%), rgba(255,255,255,.12) var(--p, 0%)); }
+:root[data-style="steam"] .player input[type=range]::-webkit-slider-runnable-track,
+:root[data-style="steam"] .fseek input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--accent2) var(--p, 0%), rgba(255,255,255,.12) var(--p, 0%)); }
+:root[data-style="steam"] input[type=range]::-webkit-slider-thumb { width: 13px; height: 13px; margin-top: -5px; background: radial-gradient(circle at 40% 35%, var(--m-hi), var(--m) 55%, var(--m-lo)); box-shadow: 0 0 0 1px #050302, 0 1px 3px rgba(0,0,0,.8); }
+
+:root[data-style="steam"] .head h2 { font-family: var(--font-display); font-weight: 700; letter-spacing: .02em; color: color-mix(in srgb, var(--accent) 35%, #f4e3c0); text-shadow: 0 2px 3px rgba(0,0,0,.8); }
+:root[data-style="steam"] .main:not(.wavemode) .head { margin-bottom: 16px; }
+:root[data-style="steam"] .main[data-page="likes"] { --ic: var(--i-heart); }
+:root[data-style="steam"] .main[data-page="statsBtn"] { --ic: var(--i-stats); }
+:root[data-style="steam"] .main[data-page="settingsBtn"] { --ic: var(--gear); }
+:root[data-style="steam"] .main:not(.wavemode):is([data-page="likes"], [data-page="statsBtn"], [data-page="settingsBtn"]) .head h2 { position: relative; display: flex; align-items: center; gap: 16px; }
+:root[data-style="steam"] .main:not(.wavemode):is([data-page="likes"], [data-page="statsBtn"], [data-page="settingsBtn"]) .head h2::before {
+  content: ""; width: 42px; height: 42px; flex: none; border-radius: 50%;
+  background: transparent; box-shadow: 0 0 0 2px var(--m);
+}
+:root[data-style="steam"] .main:not(.wavemode):is([data-page="likes"], [data-page="statsBtn"], [data-page="settingsBtn"]) .head h2::after {
+  content: ""; position: absolute; left: 10px; top: 50%; width: 22px; height: 22px; margin-top: -11px; background: var(--m-hi);
+  -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat;
+}
+:root[data-style="steam"] .headimg { box-shadow: 0 0 0 1px #050302, 0 0 0 3px var(--m), 0 0 0 4px #050302, 0 4px 10px rgba(0,0,0,.7); }
+:root[data-style="steam"] .sub, :root[data-style="steam"] .status { color: var(--muted); }
+:root[data-style="steam"] .main::-webkit-scrollbar-thumb { background: var(--m-lo); border-radius: 0; border: 1px solid var(--ls); }
+:root[data-style="steam"] .main::-webkit-scrollbar-track { background: rgba(0,0,0,.3); }
+
+:root[data-style="steam"] .list { padding: 16px 20px; counter-reset: trk; --plate-a: transparent; --plate-b: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+:root[data-style="steam"] .list::before {
+  content: ""; position: absolute; top: -5px; left: 50%; width: 8px; height: 8px; margin-left: -4px; transform: rotate(45deg);
+  background: var(--m); box-shadow: 0 0 0 1px #050302;
+}
+:root[data-style="steam"] .list:empty { display: none; }
+:root[data-style="steam"] .list li {
+  counter-increment: trk; border-radius: 0; padding: 7px 12px 7px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+}
+:root[data-style="steam"] .list li::before {
+  content: none; display: none;
+  font-size: 13px; color: color-mix(in srgb, var(--accent) 65%, #8a7a66); font-variant-numeric: tabular-nums;
+}
+:root[data-style="steam"] .list li:last-child { border-bottom: 0; }
+:root[data-style="steam"] .list li .t { font-family: var(--font-display); font-size: 14.5px; letter-spacing: .02em; color: #e8d6b4; }
+:root[data-style="steam"] .list li:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+:root[data-style="steam"] .list img, :root[data-style="steam"] .simcard img, :root[data-style="steam"] .lastAlbum img { border-radius: 2px; border: 1px solid var(--ls); }
+:root[data-style="steam"] .list li.playing { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 20%, transparent), transparent 80%); box-shadow: inset 2px 0 0 var(--m); }
+:root[data-style="steam"] .list li.playing::before { color: var(--m-hi); }
+:root[data-style="steam"] .list li.playing .t { color: #fff0d4; text-shadow: none; }
+:root[data-style="steam"] .likebtn { color: var(--muted); }
+:root[data-style="steam"] .likebtn.on { color: var(--a2-hi); filter: none; }
+
+:root[data-style="steam"] .card, :root[data-style="steam"] .lastAlbum, :root[data-style="steam"] .simcard, :root[data-style="steam"] .stylecard {
+  border-radius: 3px; border: 1px solid var(--ln); outline: 1px solid var(--ls); outline-offset: -5px;
+  background: rgba(255,255,255,.03);
+  box-shadow: none;
+}
+:root[data-style="steam"] .card, :root[data-style="steam"] .lastAlbum { padding-left: 22px; padding-right: 22px; }
+:root[data-style="steam"] .stations, :root[data-style="steam"] .volpop, :root[data-style="steam"] .stcardhover {
+  border-radius: 3px; border: 1px solid var(--ln); background: rgba(18, 13, 9, .97); box-shadow: 0 10px 28px rgba(0,0,0,.65);
+}
+:root[data-style="steam"] .lastAlbum:hover, :root[data-style="steam"] .simcard:hover { border-color: var(--m-hi); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+:root[data-style="steam"] .stylecard.on { border-color: var(--m-hi); outline-color: var(--ln); }
+:root[data-style="steam"] .drop { border-radius: 3px; }
+:root[data-style="steam"] .card h3, :root[data-style="steam"] .stbox h3, :root[data-style="steam"] .similar h3, :root[data-style="steam"] .simcard b, :root[data-style="steam"] .lastAlbum b, :root[data-style="steam"] .stalbum .ttl, :root[data-style="steam"] .nptitle, :root[data-style="steam"] .ftitle { font-family: var(--font-display); letter-spacing: .02em; color: #e8d6b4; }
+:root[data-style="steam"] .stbox h3 { border-bottom: 1px solid var(--ls); }
+:root[data-style="steam"] .stlegend li { border-top-color: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+@property --sx { syntax: "<percentage>"; inherits: false; initial-value: 100%; }
+@property --ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+:root[data-style="steam"] .tab { transition: color .15s, transform .18s ease; }
+:root[data-style="steam"] .tab:hover { transform: translateY(-2px); }
+:root[data-style="steam"] .tab:hover::after { --sx: 0%; transition: --sx .7s ease-out; }
+:root[data-style="steam"] .tab:active { transform: translateY(0); transition-duration: .05s; }
+
+:root[data-style="steam"] .wavebtn { box-shadow: 0 0 0 2px #050302, 0 0 0 6px var(--a2), 0 0 0 7px #050302, 0 10px 26px rgba(0,0,0,.7), inset 0 3px 8px rgba(0,0,0,.7); }
+:root[data-style="steam"] .wavebtn::before, :root[data-style="steam"] .wavebtn::after {
+  content: ""; position: absolute; border-radius: 50%; pointer-events: none; z-index: -1;
+}
+:root[data-style="steam"] .wavebtn::before {
+  inset: -16px;
+  background: conic-gradient(from var(--ang), var(--a2-ln) 0 100%);
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 7px), #000 calc(100% - 6.5px)), repeating-conic-gradient(#000 0 1.6deg, transparent 1.6deg 10deg);
+  -webkit-mask-composite: source-in;
+  mask: radial-gradient(closest-side, transparent calc(100% - 7px), #000 calc(100% - 6.5px)), repeating-conic-gradient(from -0.8deg, #000 0 1.6deg, transparent 1.6deg 10deg);
+  mask-composite: intersect;
+}
+:root[data-style="steam"] .wavebtn::after { inset: -20px; border: 1px solid var(--a2-ls); }
+:root[data-style="steam"] .wavebtn.playing { animation: steamBreath 2.6s steps(39) infinite; }
+:root[data-style="steam"] .wavebtn.playing::before {
+  background: conic-gradient(from var(--ang), var(--a2-lo) 0deg, var(--a2-ls) 200deg, var(--a2) 300deg, var(--a2-hi) 352deg, #fff3dc 358deg, var(--a2-lo) 360deg);
+  animation: steamSweep 4s steps(36) infinite;
+}
+@keyframes steamSweep { to { --ang: 360deg; } }
+@keyframes steamBreath {
+  0%, 100% { box-shadow: 0 0 0 2px #050302, 0 0 0 6px var(--m), 0 0 0 7px #050302, 0 10px 26px rgba(0,0,0,.7), inset 0 3px 8px rgba(0,0,0,.7); }
+  50% { box-shadow: 0 0 0 2px #050302, 0 0 0 6px var(--m-hi), 0 0 0 7px #050302, 0 0 22px color-mix(in srgb, var(--accent) 35%, transparent), inset 0 3px 8px rgba(0,0,0,.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-style="steam"] .wavebtn.playing, :root[data-style="steam"] .wavebtn.playing::before { animation: none; }
+  :root[data-style="steam"] .tab, :root[data-style="steam"] .tab:hover::after { transition: none; }
+}
+

@@ -10,6 +10,10 @@
 // Как применяется:
 // * только приглушение — через громкость плеера (audio.volume), без звукового графа и без нагрузки на процессор;
 // * «Поднимать тихие треки» — нужен GainNode, поэтому трек идёт через звуковой граф, как с эквалайзером.
+import { $, ICON, invoke, lsJSON } from "../app/base.js";
+import { menuAlive, menuHead, menuItem, menuNote, menuReset, menuSep, placeMenu, showToast, tmenu } from "../app/menu.js";
+import { trackMenuMain } from "../app/trackmenu.js";
+import { ensureVizAudio, outVol } from "./core.js";
 (() => {
   const KEY = "ym_sound";
   const MODES = ["off", "track", "album", "auto"], TARGETS = [-11, -14, -16, -18];

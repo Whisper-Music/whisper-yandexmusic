@@ -1,0 +1,59 @@
+/* Знакомство при первом запуске и «Что нового» (app/welcome.js). Окна — обычные .login.modal / .panel стиля,
+   здесь только расположение; цвета — переменными стиля. */
+.login.modal.wlc { z-index: 90; }                      /* поверх окна входа: знакомство начинается до него */
+.wlcbox { width: min(520px, calc(100vw - 32px)); gap: 14px; }
+.wlcbox h2 { margin: 0; }
+.wlcdots { display: flex; gap: 6px; }
+.wlcdots i { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--muted) 45%, transparent); }
+.wlcdots i.on { background: var(--accent); }
+.wlctext { margin: 0; line-height: 1.5; color: var(--muted); }
+.wlcstyles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.wlcstyle { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 6px; border-radius: 12px; cursor: pointer;
+  background: none; border: 1px solid transparent; color: var(--text); font: inherit; }
+.wlcstyle:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.wlcstyle.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.wlcstyle .sprev { width: 56px; height: 56px; border-radius: 50%; }
+.wlcstyle b { font-size: 13px; font-weight: 600; }
+.wlcbig { align-self: flex-start; }
+.wlckeys { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.wlckeys li { display: flex; align-items: center; gap: 12px; line-height: 1.4; }
+.wlckeys kbd { flex: none; min-width: 58px; text-align: center; font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 6px;
+  color: var(--text); border: 1px solid color-mix(in srgb, var(--muted) 45%, transparent); }
+.wlcnav { justify-content: space-between; }
+.wlcskip { opacity: .75; }
+
+/* «Что нового»: карточка в правом нижнем углу, над плеером; не мешает пользоваться окном */
+.wncard { position: fixed; right: 24px; bottom: 120px; z-index: 60; width: min(380px, calc(100vw - 48px)); max-height: 60vh;
+  display: flex; flex-direction: column; gap: 10px; padding: 16px; overflow: hidden; }
+.wnhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wnx { background: none; border: 0; color: var(--muted); font-size: 16px; cursor: pointer; padding: 2px 6px; }
+.wnx:hover { color: var(--text); }
+.wnbody { overflow-y: auto; min-height: 0; }
+.wncard .row { display: flex; justify-content: flex-end; gap: 8px; }
+/* каждая версия — своей плашкой, номер — значком */
+.wnver { padding: 10px 14px 12px; border-radius: 12px; background: color-mix(in srgb, var(--text) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); }
+.wnver + .wnver { margin-top: 10px; }
+.wnver h4 b { padding: 2px 9px; border-radius: 999px; font-size: 12.5px; background: color-mix(in srgb, var(--accent) 24%, transparent); color: var(--text); }
+.wnver h4 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px; font-size: 14px; }
+.wnver h4 small { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 12px; }
+.wntitle { font-weight: 400; color: var(--accent2); }
+.wnver ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; line-height: 1.45; }
+.wnlist { max-height: 60vh; overflow-y: auto; padding-right: 4px; }
+:root[data-style="royal"] .wlcstyle, :root[data-style="steam"] .wlcstyle, :root[data-style="royal"] .wnver, :root[data-style="steam"] .wnver,
+:root[data-style="royal"] .wnver h4 b, :root[data-style="steam"] .wnver h4 b { border-radius: 3px; }
+
+/* версия под «Профилем» → «Что нового»; в свёрнутой боковой панели, мини-виде и на телефоне не показывается */
+/* у самой нижней границы панели: absolute (у .panel есть backdrop-filter — он и так держит absolute внутри себя),
+   а «Профилю» — отступ снизу, чтобы надпись под ним не налезала */
+:where(.app > .side) { position: relative; }
+.side > .sidever { position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%); margin: 0; padding: 1px 8px;
+  background: none; border: 0; border-radius: 6px; font: inherit; font-size: 10.5px; line-height: 1.3; letter-spacing: .02em;
+  color: var(--muted); opacity: .7; cursor: pointer; white-space: nowrap; }
+html:not(.mobile):not([data-ly-sb="mini"]):not([data-ly-ui="super"]) .side > #profile:has(+ .sidever:not(:empty)) { margin-bottom: 12px; }
+/* у Lolitta низ панели закрыт жемчугом и бантами — надпись чуть выше, над ними; подложка светлая — текст её «чернилами» */
+:root[data-base="lolitta"] .side > .sidever { bottom: 30px; z-index: 3; color: var(--l-ink, var(--muted)); opacity: .8; }   /* светлая стёганая подложка — текст тёмный */
+html:not(.mobile):not([data-ly-sb="mini"]):not([data-ly-ui="super"])[data-base="lolitta"] .side > #profile:has(+ .sidever:not(:empty)) { margin-bottom: 18px; }
+.side > .sidever:hover, .side > .sidever:focus-visible { opacity: 1; color: var(--text); }
+.side > .sidever:empty, html.mobile .side > .sidever, :root[data-ly-sb="mini"] .side > .sidever, :root[data-ly-ui="super"] .side > .sidever { display: none; }
+@media (max-width: 560px) { .wlcstyles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .wncard { right: 12px; bottom: 150px; } }

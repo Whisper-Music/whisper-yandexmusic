@@ -1,0 +1,23 @@
+/* small-window — Маленькое и невысокое окно: панели видны целиком в любом стиле.
+   Часть бывшего styles.css: файлы look/styles/* подключаются строго по порядку в index.html (порядок = сила правил). */
+/* ---------- маленькое окно: верхняя, боковая и нижняя панели видны целиком в любом стиле ---------- */
+/* средняя строка сетки сжимается (minmax(0, …)), поэтому боковая панель больше не выталкивает нижнюю за край окна
+   и не сплющивает верхнюю; верхняя и нижняя всегда получают свою полную высоту */
+:root[data-style] .app { grid-template-rows: auto minmax(0, 1fr) auto; }
+:root[data-style] .tabs, :root[data-style] .player { min-height: max-content; }
+/* невысокое окно (до минимальных 540px): панели компактнее, чтобы все кнопки боковой панели помещались в ней */
+@media (max-height: 640px) {
+  :root[data-style] .app { gap: 10px; padding-left: 10px; padding-right: 10px; padding-bottom: 10px; }
+  :root[data-style] .side { gap: 6px; }
+  :root[data-style] .side .nav { flex-shrink: 0; padding-top: 7px; padding-bottom: 7px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  :root[data-style] .side .search { flex-shrink: 0; padding-top: 8px; padding-bottom: 8px; }
+  :root[data-style="royal"] .side { padding: 22px 18px; gap: 6px; --fs: 60px; }      /* узоры в углах меньше — не заходят на «Поиск» и «Профиль» */
+  :root[data-style="royal"] .tabs { padding: 8px 0 10px; }
+  :root[data-style="royal"] .tab { height: 74px; padding-top: 12px; --notch: 18px; }
+  :root[data-style="steam"] .side { padding: 16px 14px; gap: 6px; }
+  :root[data-style="steam"] .side .nav { gap: 10px; padding: 7px 12px; }
+  :root[data-style="lolitta"] .side { padding: 16px 12px 26px; gap: 6px; }
+  :root[data-style="lolitta"] .side .search { padding-top: 8px; padding-bottom: 8px; }
+  :root[data-style="lolitta"] .side .search + .nav { margin-top: 2px; }
+  :root[data-style="lolitta"] .side .nav { min-height: 36px; padding: 6px 12px; }
+}

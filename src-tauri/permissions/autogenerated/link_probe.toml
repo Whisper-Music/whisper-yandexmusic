@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-link-probe"
+description = "Enables the link_probe command without any pre-configured scope."
+commands.allow = ["link_probe"]
+
+[[permission]]
+identifier = "deny-link-probe"
+description = "Denies the link_probe command without any pre-configured scope."
+commands.deny = ["link_probe"]

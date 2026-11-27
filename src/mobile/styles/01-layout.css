@@ -1,0 +1,132 @@
+/* Телефон, общее: html.mobile, окно без рамок компьютера, поиск сверху и четыре раздела внизу.
+   Часть бывшего mobile.css: файлы mobile/styles/* подключаются по порядку в index.html (порядок = сила правил). */
+/* Телефон: html.mobile ставит mobile.js; на компьютере ни одно правило файла не действует (все — под html.mobile).
+   Раскладка по макету «Whisper — мобильный интерфейс»: страница, мини-плеер и четыре раздела внизу с подписями
+   (Волна, Коллекция, Друзья, Профиль; настройки — в профиле), плеер на весь экран с подписанными кнопками,
+   меню трека и «Настроить волну» — листами снизу.
+   Здесь только расположение и размеры. Цвета, шрифты, рамки, фон панелей и карточек — от стиля (встроенного или
+   своей темы): берём var(--accent), var(--text), var(--muted) и классы .card / .panel, чтобы темы не ломались.
+   Сетка и размеры — с !important: режимы «Расположения» (data-ly-*) и правила стилей задают свои.
+   Отступы от строки состояния, выреза камеры и полоски жестов: --sys-* сообщает Android-часть (MainActivity.kt →
+   mobile.js), env(safe-area-inset-*) — запасной путь (в старых WebView там всегда 0). */
+html.mobile {
+  --m-top: max(var(--sys-top, 0px), env(safe-area-inset-top, 0px));
+  --m-bot: max(var(--sys-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  --m-pad: 14px;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  /* значки страницы «Профиль» и кнопок плеера (маски: красит currentColor) */
+  --m-i-wa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8h16v11H4zM3 4h18v4H3zM10 12h4'/%3E%3C/svg%3E");
+  --m-i-ya: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M3.5 12h17M12 3.5c2.6 2.6 2.6 14.4 0 17M12 3.5c-2.6 2.6-2.6 14.4 0 17'/%3E%3C/svg%3E");
+  --m-i-pen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4'/%3E%3C/svg%3E");
+  --m-i-find: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='M16 16l4.5 4.5'/%3E%3C/svg%3E");
+  --m-i-look: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Ccircle cx='8.5' cy='10' r='1.3'/%3E%3Ccircle cx='12' cy='7.5' r='1.3'/%3E%3Ccircle cx='15.5' cy='10' r='1.3'/%3E%3Cpath d='M13 16.5a2 2 0 1 1-3 1.5'/%3E%3C/svg%3E");
+  --m-i-ui: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M4 7h10M18 7h2M4 17h4M12 17h8'/%3E%3Ccircle cx='16' cy='7' r='2'/%3E%3Ccircle cx='10' cy='17' r='2'/%3E%3C/svg%3E");
+  --m-i-play: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M8 5l11 7-11 7z'/%3E%3C/svg%3E");
+  --m-i-out: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M4 14v-2a8 8 0 0 1 16 0v2'/%3E%3Crect x='3' y='14' width='4' height='6' rx='1.5'/%3E%3Crect x='17' y='14' width='4' height='6' rx='1.5'/%3E%3C/svg%3E");
+  --m-i-int: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1'/%3E%3C/svg%3E");
+  --m-i-data: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cellipse cx='12' cy='6' rx='8' ry='2.5'/%3E%3Cpath d='M4 6v12c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5V6M4 12c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5'/%3E%3C/svg%3E");
+  --m-i-queue: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M4 6h12M4 11h12M4 16h7M19.5 17V9'/%3E%3Ccircle cx='17' cy='17' r='2.5'/%3E%3C/svg%3E");
+  --m-i-lyrics: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='9' y='3' width='6' height='11' rx='3'/%3E%3Cpath d='M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6'/%3E%3C/svg%3E");
+  --m-i-together: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='9' cy='9' r='3.2'/%3E%3Cpath d='M3.5 19c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5'/%3E%3Ccircle cx='17' cy='8' r='2.5'/%3E%3Cpath d='M16 13.5c2.4 0 4 1.3 4.6 4'/%3E%3C/svg%3E");
+  --m-i-sleep: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z'/%3E%3C/svg%3E");
+  --m-i-more: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Ccircle cx='5' cy='12' r='1.9'/%3E%3Ccircle cx='12' cy='12' r='1.9'/%3E%3Ccircle cx='19' cy='12' r='1.9'/%3E%3C/svg%3E");
+  --m-i-go: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l6 6-6 6'/%3E%3C/svg%3E");
+  --m-i-back: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 12H5M11 6l-6 6 6 6'/%3E%3C/svg%3E");
+  --m-i-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  /* кнопки шапки альбома и автора */
+  --m-i-heart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linejoin='round'%3E%3Cpath d='M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.1a4.3 4.3 0 0 1 7.5 2.7C19.5 15.4 12 20 12 20z'/%3E%3C/svg%3E");
+  --m-i-heart-on: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.1a4.3 4.3 0 0 1 7.5 2.7C19.5 15.4 12 20 12 20z'/%3E%3C/svg%3E");
+  --m-i-ban: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M6 6l12 12'/%3E%3C/svg%3E");
+  --m-i-pin: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linejoin='round'%3E%3Cpath d='M7 4h10v16l-5-3.8L7 20z'/%3E%3C/svg%3E");
+  --m-i-pin-on: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='1.9' stroke-linejoin='round'%3E%3Cpath d='M7 4h10v16l-5-3.8L7 20z'/%3E%3C/svg%3E");
+  --m-i-dl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11M7 10.5l5 5 5-5M5 20h14'/%3E%3C/svg%3E");
+  --m-i-dl-done: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M8 12.5l2.7 2.7L16 9.8'/%3E%3C/svg%3E");
+  --m-i-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0'/%3E%3C/svg%3E");
+}
+html.mobile body { overscroll-behavior: none; }
+html.mobile .mpico {
+  flex: none; width: 22px; height: 22px; background: currentColor;
+  -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat;
+}
+html.mobile .i-wa { --ic: var(--m-i-wa); } html.mobile .i-pen { --ic: var(--m-i-pen); } html.mobile .i-ya { --ic: var(--m-i-ya); } html.mobile .i-find { --ic: var(--m-i-find); }
+html.mobile .i-look { --ic: var(--m-i-look); } html.mobile .i-ui { --ic: var(--m-i-ui); } html.mobile .i-play { --ic: var(--m-i-play); }
+html.mobile .i-out { --ic: var(--m-i-out); } html.mobile .i-int { --ic: var(--m-i-int); } html.mobile .i-data { --ic: var(--m-i-data); }
+html.mobile .i-stats { --ic: var(--ly-i-stats); } html.mobile .i-studio { --ic: var(--ly-i-studio); }
+html.mobile .i-queue { --ic: var(--m-i-queue); } html.mobile .i-lyrics { --ic: var(--m-i-lyrics); } html.mobile .i-together { --ic: var(--m-i-together); }
+html.mobile .i-sleep { --ic: var(--m-i-sleep); } html.mobile .i-more { --ic: var(--m-i-more); }
+
+/* лента, которая листается вбок, гаснет у правого края — видно, что там есть ещё (и отступ, чтобы последнюю
+   кнопку можно было докрутить из-под затухания) */
+html.mobile :is(#chips, .plbar, #settingsPage .settabs, .stations .chips, .eqpresets) {
+  flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; touch-action: pan-x;
+  padding-right: 32px; scroll-padding-right: 32px;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+}
+html.mobile :is(#chips, .plbar, #settingsPage .settabs, .stations .chips, .eqpresets)::-webkit-scrollbar { display: none; }
+html.mobile :is(#chips, .plbar, #settingsPage .settabs, .stations .chips, .eqpresets) > * { flex: none !important; }
+
+/* ничего от окна компьютера: рамки, закладок, колонки закреплённых */
+html.mobile #titlebar, html.mobile .tabs, html.mobile #pinRail { display: none !important; }
+/* ручки размера панелей (layout.js) стоят в именованных ячейках сетки компьютера; у телефонной сетки таких нет —
+   ручки заводили два лишних столбца справа (место справа больше, чем слева) и вылезали за край экрана */
+html.mobile .lyhandle { display: none !important; }
+
+html.mobile body > .app {
+  padding: calc(8px + var(--m-top)) 8px var(--m-bot) !important;
+  gap: 6px !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-rows: auto minmax(0, 1fr) auto auto !important;
+  grid-template-areas: none !important;
+}
+
+/* ---------- боковая панель распадается: поиск — строкой сверху, разделы — внизу ---------- */
+html.mobile .app > .side { display: contents !important; }
+html.mobile .app > .side > * { display: none !important; }
+/* поиск layout.js завернул в .sbox > .sinner (плавающий поиск свёрнутой панели) — на телефоне это просто строка */
+html.mobile .app > .side > .sbox {
+  display: block !important; position: static !important; grid-column: 1 / -1; grid-row: 1;
+  width: auto !important; height: auto !important; margin: 0 4px; transform: none !important;
+}
+html.mobile .side .sinner { display: contents !important; }
+html.mobile .side .sgrip { display: none !important; }
+html.mobile .side #search {
+  display: block !important; position: static !important; width: 100% !important; box-sizing: border-box; margin: 0;
+  height: 40px !important; min-height: 0 !important; /* отступы — от стиля: у некоторых слева значок лупы */
+  font-size: 16px !important; /* меньше 16px — Android увеличивает страницу при вводе */
+}
+/* четыре раздела: значок и подпись, без «таблеток»; выбранный — цветом акцента */
+html.mobile .app > .side > :is(#wave, #likes, #friendsBtn, #profile) {
+  display: flex !important; flex-direction: column; grid-row: 4; align-items: center; justify-content: center; gap: 3px;
+  min-width: 0; height: 56px; min-height: 0; margin: 0; padding: 4px 0 6px !important;
+  font-size: 11px !important; line-height: 1.1; letter-spacing: 0 !important; text-align: center; white-space: nowrap;
+  background: none !important; border: 0 !important; box-shadow: none !important; text-shadow: none !important;
+  color: var(--muted) !important; transform: none !important; border-radius: 12px !important;
+}
+html.mobile .app > .side > .nav::before {
+  content: ""; flex: none; width: 24px; height: 24px; background: currentColor !important; filter: none !important;
+  -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat;
+}
+html.mobile .app > .side > .nav.active, html.mobile.m-inprofile .app > .side > #profile { color: var(--accent) !important; font-weight: 600; }
+/* подложка под разделами: на светлых обоях (Неон с картинкой) подписи иначе терялись. Это ::after самой сетки —
+   ячейка 4-й строки под кнопками, лишнего элемента в разметке нет */
+html.mobile body > .app::after {
+  content: ""; grid-column: 1 / -1; grid-row: 4; z-index: 0; margin: 0 -8px calc(0px - var(--m-bot));
+  background: linear-gradient(rgba(6, 4, 12, .55), rgba(6, 4, 12, .8));
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); pointer-events: none;
+}
+html.mobile .app > .side > .nav { position: relative; z-index: 1; }
+html.mobile .side > #wave { grid-column: 1; }
+html.mobile .side > #likes { grid-column: 2; }
+html.mobile .side > #friendsBtn { grid-column: 3; }
+html.mobile .side > #profile { grid-column: 4; }
+
+html.mobile .app > .main {
+  grid-column: 1 / -1 !important; grid-row: 2 !important;
+  padding: 0 var(--m-pad) !important; -webkit-overflow-scrolling: touch;
+  touch-action: pan-y; /* свайпы влево-вправо между разделами (mobile.js) — не прокрутка страницы */
+}
+html.mobile .app > .main { scrollbar-width: none; }
+html.mobile .app > .main::-webkit-scrollbar { width: 0 !important; display: none; }
+

@@ -11,6 +11,7 @@
     "allow-ym-track-url",
     "allow-ym-track-format",
     "allow-ym-lyrics",
-    "allow-fetch-bytes"
+    "allow-fetch-bytes",
+    "allow-fetch-range"
   ]
 }

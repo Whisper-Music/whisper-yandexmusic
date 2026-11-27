@@ -5,6 +5,7 @@
 // и где остановился). Не отправилось (нет сети, Яндекс не ответил) — отчёт ждёт в localStorage и уходит позже;
 // client-now ставится в момент отправки, чтобы Яндекс понимал, что отчёт запоздал.
 // uid в форму подставляет Rust. Работает только через Whisper.on / Whisper.player — без переменных main.js.
+import { invoke } from "../app/base.js";
 (() => {
   const W = window.Whisper;
   if (!W) return;

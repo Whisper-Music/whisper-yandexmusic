@@ -11,6 +11,8 @@
 // полей записи (изменилась — отправить снова), file — размер отправленного файла, bad — файл, который архив не берёт.
 // Запуск: через несколько секунд после старта, после изменений в студии (window.libsyncPoke) и раз в 5 минут.
 // Выключатель — Настройки → Приложение → «Треки по ссылке» (#lsOn, ym_libsync_on, по умолчанию включено).
+import { invoke, lsJSON } from "../app/base.js";
+import { showToast } from "../app/menu.js";
 (() => {
   const W = window.Whisper;
   const $y = (id) => document.getElementById(id);

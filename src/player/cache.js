@@ -7,6 +7,10 @@
 // Играет кэш main.js → play(): тем же ymlocal://, что и скачанные (window.appCache.has). Без интернета — сразу из кэша.
 // Настройки — карточка «Кэш» во вкладке «Воспроизведение»: размер (Выкл — кэш очищен), «Сохранять текущий плейлист»,
 // сколько треков волны хранить; полоса — сколько места занято и чем.
+import { invoke } from "../app/base.js";
+import { plural } from "../app/list.js";
+import { modal } from "../app/menu.js";
+import { trackMin } from "../library/downloads.js";
 (() => {
   const W = window.Whisper;
   if (!W) return;

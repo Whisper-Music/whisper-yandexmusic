@@ -222,19 +222,25 @@ fn gpu_mark() -> Option<std::path::PathBuf> {
 }
 
 /// Тема двигает слои за курсором (themefx.js) — со следующего запуска страницу рисует видеокарта.
+/// Метка остаётся и после смены темы: раньше она снималась, и параллакс-тема, включённая в приложении, запущенном
+/// с другой темой, дёргалась до перезапуска. Кто хоть раз включил такую тему — запуск чуть дольше, зато без лагов.
 /// true — сейчас рисует процессор, а теме нужна видеокарта: плавно станет после перезапуска.
+/// restart — сразу перезапустить приложение (кнопка в подсказке; трек и место в нём сохранила страница).
 #[tauri::command(async)]
-pub fn gpu_raster(on: bool) -> bool {
+pub fn gpu_raster(app: tauri::AppHandle, on: bool, restart: Option<bool>) -> bool {
     #[cfg(windows)]
     if let Some(f) = gpu_mark() {
         if on && !f.exists() {
             let _ = f.parent().map(std::fs::create_dir_all);
             let _ = std::fs::write(&f, b"1");
-        } else if !on {
-            let _ = std::fs::remove_file(&f);
         }
     }
-    on && CPU_RASTER.load(std::sync::atomic::Ordering::Relaxed)
+    let later = on && CPU_RASTER.load(std::sync::atomic::Ordering::Relaxed);
+    if later && restart == Some(true) {
+        crate::winstate::save(&app);
+        app.restart();
+    }
+    later
 }
 
 /// Плагины только для компьютера. Single-instance должен быть первым плагином: повторный запуск (ярлык,

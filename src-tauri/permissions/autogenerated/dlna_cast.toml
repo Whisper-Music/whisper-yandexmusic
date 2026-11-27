@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dlna-cast"
+description = "Enables the dlna_cast command without any pre-configured scope."
+commands.allow = ["dlna_cast"]
+
+[[permission]]
+identifier = "deny-dlna-cast"
+description = "Denies the dlna_cast command without any pre-configured scope."
+commands.deny = ["dlna_cast"]

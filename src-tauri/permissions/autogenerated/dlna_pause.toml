@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dlna-pause"
+description = "Enables the dlna_pause command without any pre-configured scope."
+commands.allow = ["dlna_pause"]
+
+[[permission]]
+identifier = "deny-dlna-pause"
+description = "Denies the dlna_pause command without any pre-configured scope."
+commands.deny = ["dlna_pause"]

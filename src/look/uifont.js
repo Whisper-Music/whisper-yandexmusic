@@ -1,6 +1,7 @@
 // Шрифт интерфейса: любой шрифт, установленный в системе (Настройки → Оформление → Шрифт).
 // Список даёт Rust (fonts.rs, команда system_fonts); если команды нет (старая сборка) — Local Font Access API WebView.
 // Выбор хранится отдельно от стилей (ym_font): при смене стиля шрифт остаётся. Пусто — шрифт самого стиля.
+import { renderList } from "../app/list.js";
 (() => {
   const KEY = "ym_font";
   const $f = (id) => document.getElementById(id);

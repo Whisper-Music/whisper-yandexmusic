@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-link-download-list"
+description = "Enables the link_download_list command without any pre-configured scope."
+commands.allow = ["link_download_list"]
+
+[[permission]]
+identifier = "deny-link-download-list"
+description = "Denies the link_download_list command without any pre-configured scope."
+commands.deny = ["link_download_list"]

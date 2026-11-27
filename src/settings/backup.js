@@ -11,6 +11,12 @@
 //   * настройки страницы — раз в 3 часа (если что-то изменилось) и перед любым восстановлением;
 //   * список скачанных треков и папки загрузок — пишет сам download.rs; повреждённые он восстанавливает при запуске сам.
 // Повреждённые настройки страницы замечает lsguard.js до запуска main.js — тогда здесь предлагается откат.
+import { invoke } from "../app/base.js";
+import { fmtDate } from "../app/list.js";
+import { closeTrackMenu, modal, showToast } from "../app/menu.js";
+import { loadGot } from "../library/downloads.js";
+import { IDB } from "../look/bg.js";
+import { GROUPS } from "../pages/wave.js";
 (() => {
   const FORMAT = "whisper-backup", SNAP_FORMAT = "whisper-settings", VER = 1;
   const MAX_FILE = 512 * 1048576, MAX_UNPACKED = 768 * 1048576, MAX_ENTRIES = 2000, MAX_LS_VALUE = 4 * 1048576;

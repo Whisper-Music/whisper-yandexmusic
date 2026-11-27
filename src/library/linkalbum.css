@@ -1,0 +1,31 @@
+/* Альбом по ссылке (linkalbum.js): выбор «разделить / одним треком», окно треков альбома.
+   Окна — обычные .modal .login-box .modalbox, варианты — .dropopt из dropin.css: стили и темы оформляют их сами. */
+.lachoose { width: min(420px, calc(100vw - 40px)); }
+.lachoose .laopts { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
+.lanote { margin: 2px 0 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+.labox { width: min(640px, calc(100vw - 40px)); max-height: calc(100vh - 60px); display: flex; flex-direction: column; }
+.labox [hidden] { display: none !important; }
+.labox h4 { margin: 12px 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+.lameta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lalab { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+.lalab .field { width: 100%; box-sizing: border-box; margin: 0; }
+.lahead { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; padding: 0 6px; font-size: 12px; color: var(--muted); }
+.lahead span:first-of-type { flex: 1; }
+.lalist { flex: 1 1 auto; min-height: 90px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; }
+.larow { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; background: color-mix(in srgb, var(--text) 4%, transparent); }
+:root[data-base="royal"] .larow, :root[data-base="steam"] .larow { border-radius: 2px; }
+.larow.off { opacity: .5; }
+.larow .field { margin: 0; padding-top: 5px; padding-bottom: 5px; min-width: 0; }
+.larow .latime { width: 76px; flex: none; text-align: center; font-variant-numeric: tabular-nums; }
+.larow .latime.bad { outline: 1px solid #ff8a8a; }
+.larow .latitle { flex: 1; }
+.ladur { width: 58px; flex: none; text-align: right; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.laxdel { flex: none; width: 26px; height: 26px; border: 0; border-radius: 50%; cursor: pointer; font-size: 11px; color: var(--muted); background: none; }
+.laxdel:hover { color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
+.laadd { align-self: flex-start; margin-top: 8px; }
+.lawhere { grid-template-columns: 1fr 1fr; }
+.lawhere .dropopt:disabled { opacity: .55; cursor: default; }
+@media (max-width: 560px) { .lameta, .lawhere { grid-template-columns: 1fr; } }
+.lawhat { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 2px; }
+.lawhat b { color: var(--text); font-weight: 600; }

@@ -6,6 +6,14 @@
 // Хранится только на этом компьютере (IndexedDB), дни старше 400 дней удаляются.
 // Страница «Статистика»: при включённой записи — прослушивания (и вкладка «Лайки» со старой статистикой),
 // при выключенной — как раньше, только по лайкам.
+import { $, fill, invoke, mkImg } from "../app/base.js";
+import { cover } from "../app/list.js";
+import { modal, showToast } from "../app/menu.js";
+import { navigate, setChips } from "../app/nav.js";
+import { IDB } from "../look/bg.js";
+import { loadArtist, showArtist } from "./artist.js";
+import { fmtHM, fmtHours, fmtInt, genreTitle, ICONS, plRu, showStats, statCard } from "./stats.js";
+import { play } from "../player/core.js";
 (() => {
   const KEY = "lstats:v1", ON_KEY = "ym_lstats_on", KEEP_DAYS = 400;
   let on = false;

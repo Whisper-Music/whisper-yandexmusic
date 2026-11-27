@@ -1,0 +1,41 @@
+/* Расположение: время трека, подсказка на линии и карточка «Расположение» в настройках.
+   Часть бывшего layout.css: файлы look/layout/* подключаются по порядку в index.html (порядок = сила правил). */
+/* ---------- время трека ---------- */
+.seekrow { position: relative; }
+html:root[data-ly-time="hover"] .player .time {
+  position: absolute; bottom: calc(100% - 2px); width: auto; font-size: 11px; line-height: 1;
+  opacity: 0; transition: opacity .15s; pointer-events: none;
+}
+html:root[data-ly-time="hover"] .player #tCur { left: 0; }
+html:root[data-ly-time="hover"] .player #tDur { right: 0; }
+html:root[data-ly-time="hover"] .player .seekrow:hover .time,
+html:root[data-ly-time="hover"] .player .seekrow:focus-within .time { opacity: 1; }
+
+/* подсказка со временем под курсором на линии воспроизведения */
+.seektip {
+  position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 4; transform: translateX(-50%);
+  padding: 3px 7px; border-radius: 6px; font-size: 11px; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap;
+  color: var(--text, #fff); background: rgba(10, 6, 22, .92); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  pointer-events: none; opacity: 0; transition: opacity .12s;
+}
+.seekrow.tipon .seektip { opacity: 1; }
+html:root[data-ly-time="hover"] .seekrow.tipon .time { opacity: .35; }
+
+/* ---------- настройки: карточка «Расположение» ---------- */
+.lyrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.lyrow > span { color: var(--text); font-size: 14px; }
+.lyseg { display: flex; gap: 6px; flex-wrap: wrap; }
+.lyseg .chip { padding: 7px 14px; font-size: 13px; }
+
+/* значки (маски) */
+:root {
+  --ly-i-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 12h2M7 8v8M11 4v16M15 7v10M19 10v4'/%3E%3C/svg%3E");
+  --ly-i-heart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 20.5 4.6 13.3a4.9 4.9 0 0 1 6.9-7l.5.5.5-.5a4.9 4.9 0 0 1 6.9 7z'/%3E%3C/svg%3E");
+  --ly-i-stats: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 13h4v7H4zM10 4h4v16h-4zM16 9h4v11h-4z'/%3E%3C/svg%3E");
+  --ly-i-gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M10.3 2h3.4l.5 2.6 1.8.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.8 2.6.5v3.4l-2.6.5-.8 1.8 1.5 2.2-2.4 2.4-2.2-1.5-1.8.8-.5 2.6h-3.4l-.5-2.6-1.8-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.8L2 13.7v-3.4l2.6-.5.8-1.8-1.5-2.2 2.4-2.4 2.2 1.5 1.8-.8zM12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z'/%3E%3C/svg%3E");
+  --ly-i-studio: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M8.6 7.6 20 18M8.6 16.4 20 6'/%3E%3C/svg%3E");
+  --ly-i-friends: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='9' cy='8' r='3.6'/%3E%3Cpath d='M2 20a7 7 0 0 1 14 0z'/%3E%3Ccircle cx='17' cy='9' r='2.8'/%3E%3Cpath d='M17.5 13.2A5.6 5.6 0 0 1 22.5 19H17.6a8.6 8.6 0 0 0-2.4-5.4 5.6 5.6 0 0 1 2.3-.4z'/%3E%3C/svg%3E");
+  --ly-i-user: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='8' r='4.2'/%3E%3Cpath d='M3.5 21a8.5 8.5 0 0 1 17 0z'/%3E%3C/svg%3E");
+  --ly-i-fold: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m11 6-6 6 6 6M19 6l-6 6 6 6'/%3E%3C/svg%3E");
+  --ly-i-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 5 5'/%3E%3C/svg%3E");
+}

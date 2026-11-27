@@ -4,6 +4,10 @@
 //  • меню «⋯» (клавиша Menu или Shift+F10) — стрелками по пунктам, → открыть подменю, ← назад
 //  • Ctrl+F — поиск, Пробел — пауза, Ctrl+←/→ — трек, Shift+←/→ — перемотка, Ctrl+↑/↓ — громкость,
 //    M — звук, L — лайк, Alt+← / Backspace / боковая кнопка мыши — назад, F1 — список клавиш
+import { tmenu } from "../app/menu.js";
+import { togglePlay } from "../player/core.js";
+import { toggleLike } from "../player/like.js";
+import { setVol } from "../player/volume.js";
 (() => {
   const $k = (s, root = document) => root.querySelector(s);
   const $$k = (s, root = document) => [...root.querySelectorAll(s)];
@@ -175,6 +179,7 @@
     ["Ctrl + ↑ / ↓", "Громче / тише"],
     ["M", "Выключить / включить звук"],
     ["L", "Лайк (выбранному или играющему треку)"],
+    ["Ctrl + K", "Командная строка: страницы, настройки, команды, треки"],
     ["Ctrl + F", "Поиск (на странице лайков — поиск по лайкам)"],
     ["↑ ↓ ← →", "Ходить по меню, трекам и карточкам"],
     ["Enter", "Включить трек / открыть"],

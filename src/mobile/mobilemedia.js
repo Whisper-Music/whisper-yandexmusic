@@ -14,6 +14,7 @@
     return {
       title: t ? t.title + (t.version ? ` (${t.version})` : "") : "",
       artist: t ? t.artists.map((a) => a.name).filter(Boolean).join(", ") : "",
+      album: t?.album?.title || "",           // магнитола в машине (Bluetooth) показывает и альбом
       cover: t ? W.cover(t, 400) || "" : "",
       duration: Math.round((p.duration || 0) * 1000),
       position: Math.round((p.position || 0) * 1000),

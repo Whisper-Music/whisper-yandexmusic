@@ -1,0 +1,95 @@
+/* extras — Консоль (cli.js), градиенты Lolitta, обложка на весь экран (imgview.js), шрифт интерфейса, «Цвета и шрифт».
+   Часть бывшего styles.css: файлы look/styles/01…11 подключаются строго по номерам (порядок = сила правил). */
+/* ---------- консоль (cli.js): стиль с «console» в settings вместо обычного интерфейса ----------
+   Тема переопределяет вид через #cli, .cli-out, .cl(.cmd|.err|.dim|.ok|.hl|.hd|.banner), .cli-status, .cli-in, .cli-ps.
+   Текст — основной цвет стиля, подсветка — второй. Фон приложения (#bg) остаётся виден под консолью. */
+.cli { display: none; }
+body.cli-on .app { display: none; }
+body.cli-on .cli {
+  position: fixed; inset: var(--cli-top, 34px) 0 0 0; z-index: 5; display: flex; flex-direction: column;
+  padding: 14px 18px 12px; gap: 8px; color: var(--accent);
+  font: 14px/1.45 "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+  background: rgba(0, 0, 0, var(--panel-a, .8));
+  text-shadow: 0 0 calc(var(--glow, 0px) * .35) color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.cli-out { flex: 1; min-height: 0; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; scrollbar-width: thin; }
+.cli .cl { min-height: 1.45em; }
+.cli .cl.cmd { color: color-mix(in srgb, var(--accent) 75%, #fff); }
+.cli .cl.err { color: #ff6b6b; }
+.cli .cl.dim { opacity: .62; }
+.cli .cl.ok, .cli .cl.hl { color: var(--accent2); }
+.cli .cl.hd { margin-top: 6px; font-weight: 700; color: var(--accent2); }
+.cli .cl.banner { font-weight: 700; }
+.cli-status { flex: none; padding: 6px 0; border-top: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .85; }
+.cli-in { flex: none; display: flex; align-items: center; gap: 8px; }
+.cli-ps { flex: none; color: var(--accent2); }
+.cli-in input { flex: 1; min-width: 0; border: 0; outline: none; padding: 0; background: transparent; color: inherit; font: inherit; caret-color: var(--accent); text-shadow: inherit; }
+/* скрытые команды: рисунки из символов (.cl.art), живые анимации (.cl.live), образцы цветов в fetch, режим party */
+.cli .cl.art { white-space: pre; overflow-wrap: normal; overflow: hidden; line-height: 1.2; }
+.cli .cl.live { color: var(--accent); line-height: 1.05; }
+.cli .cl .sw1 { color: var(--accent); } .cli .cl .sw2 { color: var(--accent2); }
+.cli .cl .sw3 { color: color-mix(in srgb, var(--accent) 50%, var(--accent2)); } .cli .cl .sw4 { color: #ff6b6b; }
+.cli-probe { position: absolute; visibility: hidden; white-space: pre; pointer-events: none; }
+.cli.party { animation: cliParty 4s linear infinite; }
+@keyframes cliParty { to { filter: hue-rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .cli.party { animation-duration: 20s; } }
+
+/* Градиенты декора Lolitta (main.js, LO.defs): цвета из переменных задаются классами, а не атрибутом style —
+   CSP приложения запрещает встроенные стили (аудит F-11). */
+.lo-defs { position: absolute; width: 0; height: 0; }
+.lgs-l-btn { stop-color: var(--l-btn); }
+.lgs-l-hi { stop-color: var(--l-hi); }
+.lgs-l-lo { stop-color: var(--l-lo); }
+.lgs-l-mid { stop-color: var(--l-mid); }
+.lgs-l-pearl { stop-color: var(--l-pearl); }
+.lgs-l2-hi { stop-color: var(--l2-hi); }
+.lgs-l2-lo { stop-color: var(--l2-lo); }
+.lgs-l2-mid { stop-color: var(--l2-mid); }
+
+/* ---------- аватарка артиста / обложка альбома на весь экран (imgview.js) ---------- */
+.headimg.zoomable { cursor: zoom-in; transition: transform .15s, filter .15s; }
+#fCover.zoomable { cursor: zoom-in; }
+.headimg.zoomable:hover { transform: scale(1.04); filter: brightness(1.08); }
+.imgview {
+  position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; cursor: zoom-out;
+  background: rgba(6, 4, 12, .82); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  opacity: 0; transition: opacity .18s;
+}
+.imgview.on { opacity: 1; }
+.imgview img {
+  width: min(86vw, 86vh, 1000px); height: min(86vw, 86vh, 1000px); object-fit: cover; border-radius: 14px;
+  box-shadow: 0 20px 70px rgba(0,0,0,.6), 0 0 40px color-mix(in srgb, var(--glow-c, var(--accent)) 30%, transparent);
+  transform: scale(.94); transition: transform .2s; user-select: none;
+}
+.imgview img.rnd { border-radius: 50%; }
+.imgview.on img { transform: none; }
+.imgview .ivhint { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); font-size: 12px; color: rgba(255,255,255,.55); }
+:root[data-style="royal"] .imgview img:not(.rnd), :root[data-style="steam"] .imgview img:not(.rnd) { border-radius: 4px; }
+:root[data-anim="off"] .imgview, :root[data-anim="off"] .imgview img, :root[data-anim="off"] .headimg.zoomable { transition: none; }
+
+/* ---------- шрифт интерфейса (uifont.js) ---------- */
+#fontCard [hidden] { display: none !important; }
+.fontcur { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fontname { flex: 1 1 140px; min-width: 0; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fontbox { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.fontlist {
+  max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding: 4px;
+  border-radius: 12px; background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.08);
+}
+.fontitem {
+  flex: none; text-align: left; padding: 7px 10px; border-radius: 8px; font-size: 15px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; content-visibility: auto; contain-intrinsic-size: auto 34px;
+}
+.fontitem:hover, .fontitem:focus-visible { background: rgba(255,255,255,.08); outline: none; }
+.fontitem.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+#fontCard .switch { margin-top: 10px; }
+#fontCard .status:empty { display: none; }
+/* «Цвета и шрифт»: два столбца «цвет + кнопка под ним», под ними — широкая кнопка шрифта с названием текущего */
+.swgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+.swcol { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; min-width: 0; }
+.swcol > .nav { width: 100%; text-align: center; }
+.swcol #colorReset:disabled { opacity: .45; cursor: default; }
+.fontsec { display: flex; flex-direction: column; }
+.fontcur .fontpick { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
+.fontpick .fontname { flex: 0 1 auto; font-size: 14px; color: var(--muted); }
+

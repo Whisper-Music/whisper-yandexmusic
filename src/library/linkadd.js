@@ -2,9 +2,13 @@
 // Здесь же — общая «Добавить трек»: по ссылке или с компьютера. Откуда: правый щелчок по пустому месту «Лайков» →
 // «Добавить трек ›» (подменю, tmenu.js), кнопка «Добавить трек…» в карточке «Треки по ссылке» («Приложение» — окно
 // выбора window.addTrack), Ctrl+V со ссылкой в окне (share.js → window.linkLooks / window.linkAdd).
-// Ссылку проверяет Rust (link_check: только эти сайты и только один трек), скачанный файл — тоже (только звук m4a/mp3,
-// реально декодируется). Дальше — то же окно «Что сделать с треком», что при перетаскивании (dropin.js → dropAudio).
+// Ссылку проверяет Rust (link_check: только эти сайты; один трек или плейлист), скачанный файл — тоже (только звук m4a/mp3,
+// реально декодируется). Плейлист, длинная запись (разделить на треки?) и «не музыка» — linkalbum.js (routeLink);
+// один трек — то же окно «Что сделать с треком», что при перетаскивании (dropin.js → dropAudio).
 // yt-dlp ставится по согласию пользователя: официальный выпуск с GitHub, сверка SHA-256; раз в неделю обновляется сам.
+import { invoke } from "../app/base.js";
+import { hideToast, modal, showToast } from "../app/menu.js";
+import { routeLink } from "./linkalbum.js";
 (() => {
   const $l = (id) => document.getElementById(id);
   const err = (e) => String(e?.message || e || "ошибка").replace(/^Error:\s*/, "");
@@ -44,6 +48,9 @@
     const cancel = { label: "Отменить", fn: () => invoke("link_cancel").catch(() => {}) };
     try {
       if (!(await ensureTool())) return;
+      // плейлист, длинная запись (разделить на треки?) или не музыка — решает linkalbum.js; «single» — как обычно
+      const way = await routeLink(chk);
+      if (way !== "single") return;
       showToast(`Скачивается с ${chk.source}…`, 0, { action: cancel });
       un = await window.__TAURI__?.event?.listen("link-progress", (e) => {
         const p = e.payload || {};
@@ -96,7 +103,7 @@
     inp.autocomplete = "off"; inp.spellcheck = false;
     const go = el("button", "nav active", "Скачать"); go.type = "submit";
     line.append(inp, go);
-    const note = el("p", "addnote", "YouTube, SoundCloud, видео и клипы ВКонтакте");
+    const note = el("p", "addnote", "YouTube, SoundCloud, видео и клипы ВКонтакте; плейлист или длинное видео — соберу альбом");
     const msg = el("p", "status addmsg");
     const or = el("div", "addor"); or.append(el("span", "", "или"));
     const zone = el("button", "adddrop"); zone.type = "button";

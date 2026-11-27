@@ -1,0 +1,29 @@
+/* Расположение: атрибуты режимов, ширина и сторона боковой панели. Бывший layout.css разрезан на look/layout/01…05 —
+   подключаются по порядку в index.html (порядок = сила правил). */
+/* Расположение интерфейса (layout.js): атрибуты на <html>
+   data-ly-side  = left | right     — боковая панель слева или справа (закладки — с той же стороны)
+   data-ly-sb    = full | mini      — боковая панель целиком или узкой полосой со значками
+   data-ly-pl    = full | mini      — нижняя панель обычная или в одну строку
+   data-ly-time  = always | hover   — время трека видно всегда или при наведении на линию
+   data-ly-pins  = top | side       — закреплённые закладками сверху или колонкой у боковой панели
+   Селекторы начинаются с html:root — так они сильнее правил стилей (:root[data-style=…] …),
+   а там, где тема должна побеждать (значки), специфичность нарочно снижена через :where(). */
+
+/* ---------- ширина и сторона боковой панели ---------- */
+.app { --sw: 232px; }
+@media (max-width: 960px) { .app { --sw: 188px; } }
+@media (max-width: 880px) { .app { --sw: 164px; } }
+html:root[data-ly-sb="mini"] .app { --sw: 72px; }
+
+html:root .app { grid-template-columns: var(--sw) minmax(0, 1fr); }
+html:root[data-ly-side="right"] .app {
+  grid-template-columns: minmax(0, 1fr) var(--sw);
+  grid-template-areas: "tabs tabs" "main side" "player player";
+}
+html:root[data-ly-side="right"] .main { padding: 0 8px 0 12px; }
+/* настройки — узкая колонка: при панели справа она тоже справа, рядом с панелью (вместе с заголовком) */
+html:root[data-ly-side="right"] .settings { margin-left: auto; }
+html:root[data-ly-side="right"] .main[data-page="settingsBtn"] .head { max-width: 560px; margin-left: auto; }
+/* закладки прижаты к той же стороне; auto-отступ (а не justify-content) — чтобы при переполнении полоса листалась */
+html:root[data-ly-side="right"] .tabs > .tab:first-child { margin-left: auto; }
+

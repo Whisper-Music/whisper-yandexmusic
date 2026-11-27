@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dlna-play"
+description = "Enables the dlna_play command without any pre-configured scope."
+commands.allow = ["dlna_play"]
+
+[[permission]]
+identifier = "deny-dlna-play"
+description = "Denies the dlna_play command without any pre-configured scope."
+commands.deny = ["dlna_play"]

@@ -2,6 +2,8 @@
 // Страница настроек: поиск по всем вкладкам (Ctrl+F), переход к нужной настройке (window.openSetting) и место
 // вкладок — сверху строкой или слева столбиком (Интерфейс → Расположение → «Вкладки настроек», localStorage ym_set_tabs).
 // Вкладки и столбцы — main.js (setTab) и styles.css; здесь — только то, что поверх них.
+// для командной строки (app/palette.js): карточки и строки настроек — что показать и куда перейти
+let settingsIndex = () => [];
 (() => {
   const page = document.getElementById("settingsPage"), find = document.getElementById("setFind");
   const empty = document.getElementById("setFindEmpty"), top = document.getElementById("setTop");
@@ -12,12 +14,14 @@
   // Ищем по заголовку карточки, подписям, подсказкам (title) и синонимам ниже — по ним находят то, что названо иначе.
   // Все слова запроса должны быть в карточке; подсвечиваются строки, где нашлось слово.
   const norm = (s) => String(s || "").toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
+  // i18n-off — синонимы для поиска по настройкам, на экран не выводятся
   const SYN = {
     colorCard: "цвет акцент палитра тема font шрифт буквы текст", fxCard: "glow свечение неон анимация эффекты движение снег гирлянда интро заставка настроить тему",
     bgCard: "обои wallpaper картинка видео гиф фон динамический обложка размытие blur стекло прозрачность панелей",
     styleCard: "стиль тема оформление скин интро заставка", layoutCard: "панель слева справа мини компактный закладки вкладки расположение",
     stuCard: "панели студия статистика кнопки меню боковая закреплённые закладки прятать", vizCard: "визуализация спектр анимация музыка", tmCard: "правый щелчок клик контекстное меню действия пункты",
-    mascotCard: "кот котик cat питомец", langCard: "язык language английский english русский russian перевод", sleepCard: "таймер сна выключить компьютер ночь", xfCard: "тишина кроссфейд crossfade переход затухание стык gapless silence",
+    mascotCard: "кот котик cat питомец", langCard: "язык language английский english русский russian перевод", sleepCard: "таймер сна выключить компьютер ночь", castCard: "телевизор тв tv dlna upnp smart cast трансляция колонка вывести",
+    xfCard: "тишина кроссфейд crossfade переход затухание стык gapless silence dj диджей кроссфейд crossfade наложение склейка bpm темп тональность camelot подбор волна",
     dlCard: "скачать загрузки папка офлайн", cacheCard: "офлайн без интернета место диск память кэш",
     outCard: "наушники колонки динамики устройство звук", dpCard: "профиль наушники колонки громкость устройство",
     modeCard: "wasapi эксклюзивный битрейт flac mp3 320 качество поток трафик",
@@ -27,6 +31,7 @@
     statCard: "статистика история прослушивания очистить", bkCard: "бэкап backup восстановить перенос копия",
     resetCard: "сброс по умолчанию начальные", logCard: "лог ошибки баг отчёт журнал сломалось не работает",
   };
+  // i18n-on
   const UNITS = ".switch, .lyrow, .slide, .dcline, .fontcur, .swatch, .swcol > .nav, .updline, .dlpath, .drop, .stylecard, .vizopt, .palette, .outlist > *, .row > .nav";
   const words = (el) => norm([el.textContent, el.title, el.getAttribute("aria-label"), ...[...el.querySelectorAll("[title]")].map((x) => x.title)].join(" "));
   const TAB = {};
@@ -108,6 +113,29 @@
     return true;
   };
 
+  // Строки — переключатели, ползунки и ряды «Расположения»: по ним ищут чаще, чем по карточкам. Подписи — как на экране
+  // (на английском уже переведены i18n.js), синонимы SYN — к карточке.
+  settingsIndex = () => {
+    const tabs = {}, out = [];
+    document.querySelectorAll("#setTabs .chip").forEach((b) => { tabs[b.dataset.tab] = b.textContent.trim(); });
+    const hidden = (el) => { const h = el.closest("[hidden]"); return !!h && h !== page; };
+    // заголовок без кнопок и значка «i» (подсказка), поиск-тега и т. п.
+    const label = (el) => [...el.childNodes].filter((n) => n.nodeType === 3 || (n.nodeType === 1 && !n.matches("button, .sftag, input, select, svg") && n.textContent.trim().length > 1))
+      .map((n) => n.textContent).join(" ").replace(/\s+/g, " ").trim();
+    for (const card of page.children) {
+      if (!card.classList.contains("card") || card.style.display === "none" || card.classList.contains("m-hide") || card.hidden) continue;
+      const head = card.querySelector("h3"), title = head ? label(head) : "", tab = tabs[card.dataset.tab] || "";
+      if (title) out.push({ el: card, title, tab, text: norm(title + " " + (SYN[card.id] || "") + " " + words(card)) });
+      for (const u of card.querySelectorAll(".switch, .lyrow, .slide")) {
+        if (hidden(u)) continue;
+        const lab = (u.querySelector(":scope > span")?.textContent || "").replace(/\s+/g, " ").trim();
+        if (!lab || lab.length > 80 || lab === title) continue;
+        out.push({ el: u, title: lab, tab, sub: title, text: norm(lab + " " + (u.title || "") + " " + title) });
+      }
+    }
+    return out;
+  };
+
   // ---------- вкладки сверху или слева ----------
   const POS_KEY = "ym_set_tabs";
   let pos = (() => { try { return localStorage.getItem(POS_KEY) === "left" ? "left" : "top"; } catch { return "top"; } })();
@@ -146,3 +174,5 @@
   wide.addEventListener?.("change", follow);
   applyPos();
 })();
+
+export { settingsIndex };

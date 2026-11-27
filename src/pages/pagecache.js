@@ -2,6 +2,8 @@
 // Показывает, что лежит в кэше страниц и как он сработал: снимок «Лайков» на диске (IndexedDB «likes:v1», main.js →
 // window.pageCache), его возраст и размер, как открылись «Лайки» в последний раз (из памяти / из снимка / с Яндекса)
 // и что держится в памяти до перезапуска (плейлисты, авторы). «Сбросить снимок» — стереть снимок с диска.
+import { plural } from "../app/list.js";
+import { modal } from "../app/menu.js";
 (() => {
   const $c = (id) => document.getElementById(id);
   if (!$c("pageCacheCard") || !window.pageCache) return;

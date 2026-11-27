@@ -12,6 +12,10 @@
 //     "themes": [ { "id", "category", "name", "author", "artist", "description", "version", "base",
 //                   "file": "themes/<папка>/<id>.wmt", "preview": "previews/<папка>/<id>.jpg", "size", "tags": [] } ] }
 // Список старого вида (format 1: themes/<id>.wmt без папок) тоже читается — такие темы попадают в «Whisper Music».
+import { invoke } from "../app/base.js";
+import { plural } from "../app/list.js";
+import { showToast } from "../app/menu.js";
+import { applyCfg, BUILTIN, saveCfg, syncControls } from "./config.js";
 (() => {
   const REPO = "https://github.com/Whisper-Music/whisper-themes";
   const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
@@ -316,6 +320,36 @@
     m.note.textContent = msg; m.note.hidden = !msg;
   }
   function repaint() { if (m) for (const x of m.cards) paintButton(x.t, x.b); }
+
+  // ---------- новая версия включённой темы ----------
+  // Только про стиль, который сейчас открыт: остальные темы ждут в библиотеке с кнопкой «Обновить до …».
+  // Список берём не чаще раза в 6 часов (index.json небольшой, но каждый раз ходить на GitHub незачем); проверяем
+  // через 20 с после запуска и при смене стиля. Про одну и ту же версию говорим один раз (ym_theme_upd: { id: версия }).
+  const UPD_TTL = 6 * 3600e3;
+  let updAt = 0, updStyle = "", updBusy = false;
+  const told = () => { try { const v = JSON.parse(localStorage.getItem("ym_theme_upd") || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; } };
+  async function checkUpdate() {
+    const id = cfg?.style;
+    if (updBusy || window.offline || !id || BUILTIN.includes(id) || !cfg.themes?.some((x) => x.id === id)) return;
+    updBusy = true;
+    try {
+      if (!index || Date.now() - updAt > UPD_TTL) { await loadIndex(true); updAt = Date.now(); }
+      const t = index.themes.find((x) => x.id === id);
+      if (!t || stateOf(t) !== "update" || cfg.style !== id) return;
+      const seen = told();
+      if (seen[id] === t.version) return;
+      seen[id] = t.version;
+      try { localStorage.setItem("ym_theme_upd", JSON.stringify(seen)); } catch {}
+      showToast(`Вышла новая версия темы «${t.name}» — ${t.version}`, 15000, { action: { label: "Обновить", fn: () => install(t, el("button")) } });
+    } catch {} finally { updBusy = false; }        // нет сети или GitHub недоступен — молча, в следующий раз
+  }
+  setTimeout(() => {
+    updStyle = cfg?.style || "";
+    checkUpdate();
+    // смена стиля: applyCfg событий не шлёт, а опрос раз в 5 с ничего не стоит
+    setInterval(() => { if (cfg?.style !== updStyle) { updStyle = cfg?.style || ""; checkUpdate(); } }, 5000);
+    setInterval(checkUpdate, UPD_TTL);
+  }, 20000);
 
   window.themeLibOpen = openLib;
   // кнопку «Библиотека тем» создаёт theme.js (строка с «Загрузить тему…») — ловим нажатие на документе

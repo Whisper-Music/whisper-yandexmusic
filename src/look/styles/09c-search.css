@@ -1,0 +1,105 @@
+/* search — Поиск: лучший результат, история, «Открывал»; поиск по лайкам.
+   Часть бывшего styles.css: файлы look/styles/* подключаются строго по порядку в index.html (порядок = сила правил). */
+/* ---------- поиск: лучший результат и история ---------- */
+.list li.best {
+  position: relative; gap: 18px; padding: 14px 16px; margin-bottom: 14px; border-radius: 18px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 8%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.list li.best:hover { background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 24%, transparent), color-mix(in srgb, var(--accent) 12%, transparent)); }
+.list li.best img { width: 88px; height: 88px; flex: none; border-radius: 14px; }
+.list li.best img.rnd { border-radius: 50%; }
+.best .bbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.best .blabel { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+.best .t { font-size: 22px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.best .a { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.best .bplay {
+  flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; margin-left: auto;
+  color: var(--on-accent, #0b0618); background: var(--btn-fill);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--btn-glow) 45%, transparent); transition: transform .15s, filter .15s;
+}
+.best .bplay:hover { transform: scale(1.06); filter: brightness(1.1); }
+.best .likebtn { margin-left: 0; }
+
+.list li.histitem { gap: 12px; padding: 9px 12px; }
+.histitem .hico { flex: none; display: grid; color: var(--muted); }
+.histitem .t { flex: 1; min-width: 0; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.histitem .hdel { flex: none; width: 28px; height: 28px; border-radius: 50%; font-size: 11px; color: var(--muted); opacity: 0; transition: opacity .15s, background .15s; }
+.histitem:hover .hdel, .histitem .hdel:focus-visible { opacity: 1; }
+.histitem .hdel:hover { background: rgba(255,255,255,.12); color: var(--text); }
+.list li.histclear { justify-content: center; padding-top: 14px; cursor: default; border-bottom: 0; }
+.list li.histclear:hover { background: none; }
+
+/* «Открывал» (лента карточек над запросами) и подписи «Открывал» / «Искал» */
+.list li.histpicks, .list li.histhead-li {
+  display: block; padding: 0; cursor: default; border-bottom: 0; background: none !important;
+  box-shadow: none !important; transform: none !important; outline: 0;
+}
+.list li.histpicks::before, .list li.histpicks::after, .list li.histhead-li::before, .list li.histhead-li::after { display: none; }
+.list li.histhead-li { padding: 14px 12px 4px; }
+.histhead { display: block; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.list li.histpicks .histhead { padding: 4px 12px 8px; }
+.spicks {
+  display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; padding: 2px 12px 12px;
+  scroll-snap-type: x proximity;
+}
+/* scrollbar-width здесь нельзя: с ним Chromium игнорирует ::-webkit-scrollbar, а вид полосы ленте копирует search.js
+   (spicksScrollbar) с .main — по стилю и своей теме */
+.spicks::-webkit-scrollbar { height: 8px; }
+.spick {
+  position: relative; flex: none; width: 132px; display: flex; flex-direction: column; gap: 4px; padding: 8px;
+  border-radius: 12px; cursor: pointer; scroll-snap-align: start; transition: background .15s, transform .15s;
+}
+.spick:hover, .spick:focus-visible { background: rgba(255,255,255,.07); }
+.spick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.spick img { display: block; width: 116px; height: 116px; border-radius: 10px; object-fit: cover; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+.spick img.rnd { border-radius: 50%; }
+.spick .spt { margin-top: 4px; font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.25;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
+.spick .sps { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spick.artist { align-items: center; text-align: center; }
+.spick .spx {
+  position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 10px; color: #fff; background: rgba(10, 6, 22, .82); opacity: 0; transition: opacity .15s;
+}
+.spick:hover .spx, .spick .spx:focus-visible { opacity: .85; }
+.spick .spx:hover { opacity: 1; background: rgba(10, 6, 22, .95); }
+:root[data-anim="on"] .spick:hover { transform: translateY(-2px); }
+:root[data-style="royal"] .spick, :root[data-style="steam"] .spick { border-radius: 4px; }
+:root[data-style="royal"] .spick img:not(.rnd), :root[data-style="steam"] .spick img:not(.rnd) { border-radius: 3px; }
+:root[data-style="lolitta"] .spick .spt { color: var(--l-ink, var(--text)); }
+:root[data-style="lolitta"] .spick .sps { color: var(--l-ink2, var(--muted)); }
+:root[data-style="lolitta"] .spick:hover { background: rgba(255,255,255,.35); }
+
+@media (max-width: 880px) {
+  .list li.best img { width: 64px; height: 64px; }
+  .best .t { font-size: 18px; }
+}
+
+/* стили оформления */
+:root[data-style="neon"] .list li.best:hover, :root[data-style="neon"] .list li.histclear:hover { transform: none; box-shadow: none; }
+:root[data-style="royal"] .list li.best { border-radius: 4px; padding-left: 22px; outline: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); outline-offset: -5px; }
+:root[data-style="royal"] .best .t { font-family: var(--font-display); letter-spacing: .03em; }
+:root[data-style="royal"] .best .bplay { color: var(--on-accent, #fff); background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--accent2) 45%, #fff), var(--accent2) 55%, color-mix(in srgb, var(--accent2) 45%, #000)); box-shadow: 0 0 0 2px #0e0b09, 0 0 0 3px var(--accent); }
+:root[data-style="steam"] .list li.best { border-radius: 3px; border: 1px solid var(--ln); background: rgba(255,255,255,.03); }
+:root[data-style="steam"] .best .blabel { color: var(--m-hi); }
+:root[data-style="steam"] .best .t { font-family: var(--font-display); }
+:root[data-style="steam"] .best .bplay { color: #f3e3c3; background: radial-gradient(circle at 50% 35%, #2c2218, #0e0a07 75%); box-shadow: 0 0 0 1px #050302, 0 0 0 3px var(--a2); }
+
+/* ---------- поиск по лайкам ---------- */
+.lkfind { position: relative; display: flex; align-items: center; gap: 10px; margin: -4px 0 14px; max-width: 560px; }
+.lkfind[hidden] { display: none; }
+.lkfind > svg { position: absolute; left: 14px; color: var(--muted); pointer-events: none; }
+.lkfind > svg { z-index: 1; color: color-mix(in srgb, var(--text) 70%, transparent); filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+/* отступы под лупу и счётчик — !important: темы задают полям поиска свой padding (.search { padding: … }),
+   и без этого лупа оказывалась поверх текста */
+.lkfind .lkfindin { flex: 1; min-width: 0; padding-left: 38px !important; padding-right: 110px !important; }
+/* счётчик — внутри поля, на том же тёмном фоне, левее крестика очистки */
+.lkfindcnt {
+  position: absolute; right: 40px; top: 50%; transform: translateY(-50%); pointer-events: none;
+  font-size: 12px; font-weight: 600; color: var(--text); opacity: .8;
+  font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.45);
+}
+.lkfindcnt:empty { display: none; }
+:root[data-style="royal"] .lkfind .lkfindin { border-radius: 4px; }
+:root[data-style="steam"] .lkfind .lkfindin { border-radius: 3px; }

@@ -34,6 +34,7 @@ class MediaService : Service() {
   data class State(
     val title: String,
     val artist: String,
+    val album: String,
     val cover: String,
     val durationMs: Long,
     val positionMs: Long,
@@ -64,8 +65,14 @@ class MediaService : Service() {
   }
 
   private lateinit var session: MediaSessionCompat
-  private var coverUrl = ""
-  private var coverBmp: Bitmap? = null
+  /** Обложки последних треков (адрес → картинка): «назад» и повтор — сразу, без загрузки. */
+  private val covers = object : LinkedHashMap<String, Bitmap>(8, 0.75f, true) {
+    override fun removeEldestEntry(e: MutableMap.MutableEntry<String, Bitmap>?) = size > 6
+  }
+  private var coverLoading = ""
+  private var coverFailed = ""
+  private var coverAsked = 0L
+  private val main = android.os.Handler(android.os.Looper.getMainLooper())
   private var foreground = false
 
   override fun onBind(intent: Intent?): IBinder? = null
@@ -100,7 +107,7 @@ class MediaService : Service() {
       ACT + "next" -> act("next")
     }
     // startForegroundService обязывает показать уведомление за несколько секунд — даже если трек ещё не пришёл
-    last?.let { show(it) } ?: goForeground(build(State("Whisper", "", "", 0, 0, false)))
+    last?.let { show(it) } ?: goForeground(build(State("Whisper", "", "", "", 0, 0, false)))
     return START_NOT_STICKY
   }
 
@@ -120,16 +127,37 @@ class MediaService : Service() {
     onAction?.invoke(a, pos)
   }
 
+  /** Что сейчас в метаданных сессии — повторно не отправляем (магнитола на каждое изменение заново тянет картинку). */
+  private var metaKey = ""
+
   fun show(s: State) {
     val playing = s.playing
-    session.setMetadata(
-      MediaMetadataCompat.Builder()
-        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, s.title)
-        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, s.artist)
-        .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, if (s.durationMs > 0) s.durationMs else -1)
-        .also { b -> coverBmp?.takeIf { s.cover == coverUrl }?.let { b.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, it) } }
-        .build()
-    )
+    val art = covers[s.cover]
+    loadCover(s)
+    // Магнитола (Bluetooth AVRCP) берёт обложку, когда узнаёт о новом треке, и позже за ней обычно не возвращается.
+    // Поэтому новый трек объявляем вместе с обложкой: ждём её до 2 с (она грузится — loadCover), потом — без неё.
+    val waiting = art == null && s.cover == coverLoading && System.currentTimeMillis() - coverAsked < 2000
+    val key = listOf(s.title, s.artist, s.album, s.cover, art != null, s.durationMs / 1000).joinToString("\u0001")
+    if (!waiting && key != metaKey) {
+      metaKey = key
+      session.setMetadata(
+        MediaMetadataCompat.Builder()
+          .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, s.cover + "|" + s.title)
+          .putString(MediaMetadataCompat.METADATA_KEY_TITLE, s.title)
+          .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, s.artist)
+          .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, s.artist)
+          .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, s.album)
+          .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, s.title)
+          .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, s.artist)
+          .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, s.album)
+          .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, if (s.durationMs > 0) s.durationMs else -1)
+          // картинка — одна (ALBUM_ART; по нему же её находят и Android, и магнитолы): каждая копия едет в метаданных
+          // целиком, а у них предел ~1 МБ
+          .also { b -> art?.let { b.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, it) } }
+          .build()
+      )
+    }
+    if (waiting) main.postDelayed({ last?.takeIf { it.cover == s.cover }?.let { show(it) } }, 2100)
     session.setPlaybackState(
       PlaybackStateCompat.Builder()
         .setActions(
@@ -144,7 +172,6 @@ class MediaService : Service() {
         .build()
     )
     goForeground(build(s))
-    loadCover(s)
   }
 
   private fun goForeground(n: Notification) {
@@ -176,7 +203,8 @@ class MediaService : Service() {
       .setSmallIcon(R.drawable.ic_notify)
       .setContentTitle(s.title.ifEmpty { "Whisper" })
       .setContentText(s.artist)
-      .setLargeIcon(coverBmp?.takeIf { s.cover == coverUrl })
+      .setLargeIcon(covers[s.cover])
+      .setSubText(s.album.ifEmpty { null })
       .setContentIntent(open)
       .setOnlyAlertOnce(true)
       .setSilent(true)
@@ -196,24 +224,31 @@ class MediaService : Service() {
       .build()
   }
 
-  /** Обложка — только https (адреса картинок Яндекса и архива); грузится один раз на трек, в отдельном потоке. */
+  /**
+   * Обложка — только https (адреса картинок Яндекса и архива); грузится один раз на трек, в отдельном потоке,
+   * и ужимается до 320 px: метаданные сессии (и магнитола по Bluetooth) не принимают картинки больше ~1 МБ.
+   */
   private fun loadCover(s: State) {
     val url = s.cover
-    if (url == coverUrl || !url.startsWith("https://")) return
-    coverUrl = url
-    coverBmp = null
+    if (url == coverLoading || url == coverFailed || covers.containsKey(url) || !url.startsWith("https://")) return
+    coverLoading = url
+    coverAsked = System.currentTimeMillis()
     thread(isDaemon = true) {
       val bmp = try {
         val c = URL(url).openConnection() as HttpURLConnection
-        c.connectTimeout = 8000
-        c.readTimeout = 8000
-        c.inputStream.use { BitmapFactory.decodeStream(it) }
+        c.connectTimeout = 6000
+        c.readTimeout = 6000
+        c.inputStream.use { BitmapFactory.decodeStream(it) }?.let { b ->
+          val k = 320f / maxOf(b.width, b.height)
+          if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt().coerceAtLeast(1), (b.height * k).toInt().coerceAtLeast(1), true) else b
+        }
       } catch (_: Exception) {
         null
       }
-      if (bmp != null && url == coverUrl) {
-        coverBmp = bmp
-        last?.let { st -> if (st.cover == url) ContextCompat.getMainExecutor(this).execute { show(st) } }
+      main.post {
+        if (bmp != null) covers[url] = bmp else coverFailed = url      // не скачалась — без обложки, без новых попыток
+        if (coverLoading == url) coverLoading = ""
+        last?.let { st -> if (st.cover == url) show(st) }
       }
     }
   }

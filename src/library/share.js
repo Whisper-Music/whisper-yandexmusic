@@ -10,6 +10,11 @@
 //   * whisper://track|album|artist/… — система передаёт ссылку в Rust (deeplink.rs), он — сюда событием open-link;
 //   * ссылка Whisper или music.yandex.* (трек, альбом, артист), вставленная в поиск или просто Ctrl+V в окне.
 // Трек по ссылке сразу играет, и открывается его альбом; альбом и артист — открываются страницы.
+import { invoke, isNetErr } from "../app/base.js";
+import { albumOf } from "../app/list.js";
+import { showToast } from "../app/menu.js";
+import { navigate } from "../app/nav.js";
+import { showAlbum, showArtist } from "../pages/artist.js";
 (() => {
   const W = window.Whisper;
   const SHARE_BASE = "https://origin.whisper-archive.ru/s/";

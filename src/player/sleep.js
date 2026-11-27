@@ -1,6 +1,11 @@
 // Режим сна: Моя волна под выбранное настроение, плавное затихание и выключение компьютера по таймеру.
 // Сам таймер и выключение — в Rust (sleep.rs): он сработает, даже если страницу в трее заморозил режим экономии.
 // Здесь — настройки, кнопка с луной в нижней панели, затихание и остановка музыки.
+import { $, ICON, invoke, lsJSON, svgp } from "../app/base.js";
+import { showToast } from "../app/menu.js";
+import { GROUPS, loadStations, showWave, stations, updateStBtn, waveStart } from "../pages/wave.js";
+import { outVol } from "./core.js";
+import { setVol } from "./volume.js";
 (() => {
   const KEY = "ym_sleep";
   const TIMES = [15, 30, 45, 60, 90, 120, 180];

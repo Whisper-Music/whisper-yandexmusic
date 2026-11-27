@@ -1,0 +1,54 @@
+/* colors — Единая схема цветов полосы трека и «Тонкая настройка цветов».
+   Часть бывшего styles.css: файлы look/styles/* подключаются строго по порядку в index.html (порядок = сила правил). */
+/* ---------- единая схема цветов: полоса воспроизведения трека — вторичным цветом во всех стилях ---------- */
+#seek::-webkit-slider-runnable-track, #fSeek::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--accent2) var(--p, 0%), rgba(255,255,255,.16) var(--p, 0%)); }
+#seek::-webkit-slider-thumb, #fSeek::-webkit-slider-thumb { box-shadow: 0 0 10px var(--accent2); }
+:root[data-style="steam"] #seek::-webkit-slider-runnable-track, :root[data-style="steam"] #fSeek::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--accent2) var(--p, 0%), rgba(255,255,255,.12) var(--p, 0%)); }
+:root[data-style="steam"] #seek::-webkit-slider-thumb, :root[data-style="steam"] #fSeek::-webkit-slider-thumb { background: radial-gradient(circle at 40% 35%, var(--a2-hi), var(--a2) 55%, var(--a2-lo)); box-shadow: 0 0 0 1px #050302, 0 1px 3px rgba(0,0,0,.8); }
+:root[data-style="lolitta"] #seek::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--accent2) var(--p, 0%), color-mix(in srgb, var(--accent2) 22%, transparent) var(--p, 0%)); }
+:root[data-style="lolitta"] #fSeek::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--accent2) var(--p, 0%), rgba(255,255,255,.18) var(--p, 0%)); }
+:root[data-style="lolitta"] #seek::-webkit-slider-thumb, :root[data-style="lolitta"] #fSeek::-webkit-slider-thumb { background: radial-gradient(circle at 38% 32%, #fff 0 15%, var(--l2-light) 45%, var(--accent2) 100%); box-shadow: 0 0 0 1px var(--l2-lo), 0 0 0 3px color-mix(in srgb, var(--l-pearl) 55%, transparent), 0 1px 4px rgba(60, 15, 30, .5); }
+/* лайк в полноэкранном режиме — тоже вторичным */
+:root[data-style] .fbtns .likebtn.on { color: var(--accent2); }
+
+/* ---------- расширенная настройка цветов ---------- */
+.ccopen { align-self: flex-start; }
+.ccnote { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.ccmodal { place-items: center end; padding: 48px 24px 24px; background: rgba(0,0,0,.28); }
+.ccbox { width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 80px); padding: 22px 22px 18px; gap: 12px; }
+.ccbox > h2 { margin: 0; font-size: 20px; }
+.ccscroll { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -10px; padding: 0 10px; display: flex; flex-direction: column; gap: 8px; }
+.ccgrp { border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.ccgrp > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 11px 14px; font-weight: 600; font-size: 14px; user-select: none; }
+.ccgrp > summary::-webkit-details-marker { display: none; }
+.ccgrp > summary::after { content: "›"; margin-left: auto; font-size: 18px; line-height: 1; opacity: .6; transition: transform .15s; }
+.ccgrp[open] > summary::after { transform: rotate(90deg); }
+.ccgrp > summary .ccdots { display: flex; gap: 3px; }
+.ccgrp > summary .ccdots i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
+.ccgrp > summary small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.ccrows { display: flex; flex-direction: column; padding: 0 10px 10px; }
+.ccrow { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-radius: 8px; font-size: 13.5px; }
+.ccrow:hover { background: rgba(255,255,255,.04); }
+.ccrow > span { flex: 1; min-width: 0; }
+.ccrow > small { color: var(--muted); font-size: 11.5px; }
+.ccrow.set > small { display: none; }
+.ccrow input[type=color] { width: 30px; height: 30px; flex: none; }
+.ccrow:not(.set) input[type=color] { opacity: .55; }
+.ccrow .ccclr { width: 26px; height: 26px; flex: none; border-radius: 50%; display: grid; place-items: center; color: var(--muted); font-size: 12px; visibility: hidden; }
+.ccrow.set .ccclr { visibility: visible; }
+.ccrow .ccclr:hover { background: rgba(255,255,255,.1); color: var(--text); }
+.ccbox .row { justify-content: space-between; }
+:root[data-style="lolitta"] .ccgrp { background: rgba(255,255,255,.05); border-color: var(--l-line2); }
+:root[data-style="royal"] .ccgrp, :root[data-style="steam"] .ccgrp { border-radius: 3px; }
+
+
+/* «Тонкая настройка цветов»: непрозрачность цвета — маленький ползунок рядом с пипеткой */
+.ccrow .ccalpha { width: 70px; flex: none; height: 16px; }
+.ccrow .ccpct { width: 34px; flex: none; text-align: right; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ccrow:not(.set) .ccalpha, .ccrow:not(.set) .ccpct { opacity: .45; }
+
+/* «Сразу для всех»: один цвет во все панели или все кнопки — выделен цветом стиля и стоит первым */
+:root .ccscroll .ccgrp.ccbulk { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 9%, rgba(255,255,255,.03)); }
+.ccgrp.ccbulk > summary { flex-wrap: wrap; row-gap: 2px; }
+.ccgrp.ccbulk > summary small { flex-basis: 100%; order: 3; }
+.ccrow.mixed > small { display: inline; font-style: italic; }

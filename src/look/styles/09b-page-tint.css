@@ -1,0 +1,39 @@
+/* page-tint — Тонированные подложки под настройками, статистикой и списками; тень у текста на них.
+   Часть бывшего styles.css: файлы look/styles/* подключаются строго по порядку в index.html (порядок = сила правил). */
+/* ---------- настройки и статистика: лёгкая тонированная подложка под блоками — как в Lolitta, в тоне своего стиля ---------- */
+/* один тон на стиль (--page-tint) — общий для настроек, статистики и лайков, поэтому затемнение везде одинаковое */
+:root[data-style="neon"] { --page-tint: rgba(15, 10, 32, .34); }
+:root[data-style="royal"] { --page-tint: rgba(20, 15, 12, .34); }
+:root[data-style="steam"] { --page-tint: rgba(22, 16, 11, .34); }
+:root[data-style="lolitta"] { --page-tint: rgba(30, 11, 17, .34); }
+:root :is(.settings > .card, .stats .card) { background: var(--page-tint); }
+
+/* лайки, поиск, артист, альбом: список лежит на такой же подложке, как карточки настроек и статистики */
+:root:not([data-base="steam"]) .main:is([data-page="likes"], [data-page="search"], [data-page="artist"], [data-page="album"]) .list:not(:empty) {
+  background: var(--page-tint); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 8px;
+}
+:root[data-style="royal"] .main:is([data-page="likes"], [data-page="search"], [data-page="artist"], [data-page="album"]) .list:not(:empty) {
+  border-radius: 4px; border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); outline-offset: -5px; padding: 10px 8px;
+}
+:root[data-style="steam"] .main:is([data-page="likes"], [data-page="search"], [data-page="artist"], [data-page="album"]) .list:not(:empty) {
+  --plate-a: var(--page-tint); --plate-b: var(--page-tint); border-radius: 3px; border-color: var(--ln); padding: 16px 20px;
+}
+:root[data-style="lolitta"] .main:is([data-page="likes"], [data-page="search"], [data-page="artist"], [data-page="album"]) .list:not(:empty) {
+  border-radius: 6px; border-color: var(--l-line); padding: 12px 20px 12px 16px;
+}
+/* карточка «Последний релиз» рядом со списком у артиста — тот же тон (при наведении остаётся своя подсветка) */
+:root .main[data-page="artist"] .lastAlbum:not(:hover) { background: var(--page-tint); }
+/* текст в этих блоках — с мягкой тёмной тенью, а мелкий серый текст светлее: читается даже на белом фоне (во всех стилях) */
+/* то же — в списках треков (лайки, альбомы, артисты, поиск), плейлистах, похожих альбомах и подписях под заголовком */
+:is(.settings > .card, .stats .card, .main .list, .main .lastAlbum, .main .similar, .main .plpage, .main .sub, .main > .status) {
+  text-shadow: 0 0 1px rgba(0, 0, 0, .9), 0 0 3px rgba(0, 0, 0, .75), 0 1px 7px rgba(0, 0, 0, .55);
+  --muted: color-mix(in srgb, var(--muted-base, #a99fc9) 35%, #fff);
+}
+/* у списков подложки нет совсем — обводка у букв плотнее */
+:is(.main .list, .main .lastAlbum, .main .similar, .main .plpage, .main .sub, .main > .status) {
+  text-shadow: 0 0 1px #000, 0 0 2px rgba(0, 0, 0, .9), 0 0 5px rgba(0, 0, 0, .6), 0 1px 9px rgba(0, 0, 0, .45);
+}
+:root[data-style="royal"] { --muted-base: #a39579; }
+:root[data-style="steam"] { --muted-base: #9c876a; }
+:root[data-style="lolitta"] { --muted-base: #d4b0b7; }

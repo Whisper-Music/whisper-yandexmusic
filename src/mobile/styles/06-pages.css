@@ -1,0 +1,87 @@
+/* Телефон: динамический фон, уведомления (тосты), страницы альбома и автора.
+   Часть бывшего mobile.css: файлы mobile/styles/* подключаются по порядку в index.html (порядок = сила правил). */
+/* ---------- динамический фон по обложке ----------
+   на десктопе копия обложки — 82vmin у правого края; в узком окне телефона это треть экрана, и почти вся она
+   за краем. Здесь — крупнее, ближе к середине и чуть заметнее; «эхо» за ней — тоже крупнее */
+html.mobile .dyn-art i { right: -16vmin; top: 44%; width: 112vmin; height: 112vmin; border-radius: 6vmin; opacity: .46; }
+html.mobile .dyn-art i + i { right: 18vmin; width: 84vmin; height: 84vmin; opacity: .24; }
+
+/* ---------- уведомления (тосты) ----------
+   На компьютере тост — по центру над плеером: left 50% + сдвиг на половину ширины. В узком окне это давало ширину
+   в пол-экрана, и текст переносился на много строк. Здесь — плашка во всю ширину над мини-плеером (высоту над ним
+   ставит mobile.js → --m-toast-b), текст слева, значок ✓/✕ и кнопка действия в ряд; нажатие по плашке — скрыть */
+html.mobile .toast {
+  left: 10px !important; right: 10px !important; transform: none !important; max-width: none !important; width: auto !important;
+  bottom: var(--m-toast-b, calc(150px + var(--m-bot))) !important;
+  box-sizing: border-box; min-height: 48px; padding: 11px 14px !important; border-radius: 14px;
+  font-size: 14px; line-height: 1.35; text-align: left !important; justify-content: flex-start;
+  display: flex; align-items: center; gap: 12px; overflow-wrap: anywhere;
+}
+html.mobile .toast[hidden] { display: none !important; }
+html.mobile .toast > span { flex: 1 1 auto; min-width: 0; }
+html.mobile .toast .tact { flex: none; min-height: 36px; padding: 0 14px; font-size: 14px; }
+:root.mobile[data-anim="on"] .toast:not([hidden]) { animation: mToastIn .22s ease-out; }
+/* translate, а не transform: transform у тоста прибит !important выше — анимация его бы не сдвинула */
+@keyframes mToastIn { from { opacity: 0; translate: 0 14px; } to { opacity: 1; translate: 0 0; } }
+
+/* ---------- страницы альбома и автора ----------
+   Как в мобильных плеерах: крупная обложка (у автора — круглое фото) по центру, под ней название в 1–2 строки
+   и подпись, ниже — одна строка действий. «Нравится», «Не рекомендовать», «Закрепить» и «Скачать» — круглые
+   кнопки-значки (подпись остаётся в title и для чтения с экрана); «Моя волна по артисту» — короткая кнопка с текстом.
+   Список треков — во всю ширину (на компьютере рядом с ним колонка «Последний релиз»). */
+html.mobile .main:is([data-page="album"], [data-page="artist"]) > .head {
+  --cv: min(58vw, 240px);
+  position: relative; display: flex !important; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px;
+}
+html.mobile .main:is([data-page="album"], [data-page="artist"]) #back {
+  position: absolute; top: 4px; left: 0; z-index: 1; width: 40px; height: 40px;
+}
+html.mobile .main:is([data-page="album"], [data-page="artist"]) #headImg:not([hidden]) {
+  display: block; flex: 0 0 auto; width: var(--cv) !important; height: var(--cv) !important;
+  margin: 0 calc((100% - var(--cv)) / 2) 6px; object-fit: cover; border-radius: 14px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .45);
+}
+html.mobile .main[data-page="artist"] #headImg:not(.sq) { border-radius: 50%; }
+html.mobile .main:is([data-page="album"], [data-page="artist"]) .headtext { flex: 1 1 100%; min-width: 0; }
+html.mobile .main:is([data-page="album"], [data-page="artist"]) #title {
+  font-size: 26px !important; line-height: 1.15 !important; letter-spacing: normal; margin: 0;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+}
+html.mobile .main:is([data-page="album"], [data-page="artist"]) #sub { font-size: 13px; margin-top: 4px; }
+
+/* строка действий */
+html.mobile .main:is([data-page="album"], [data-page="artist"]) .head .pin { margin: 0 !important; flex: none; }
+html.mobile .main:is([data-page="album"], [data-page="artist"]) .head :is(#artistLikeBtn, #artistDisBtn, #pinBtn, #dlAllBtn:not(.busy)) {
+  width: 42px; height: 42px; min-height: 0; padding: 0 !important; border-radius: 50% !important;
+  font-size: 0 !important; color: var(--text); display: grid !important; place-items: center;
+}
+html.mobile .main:is([data-page="album"], [data-page="artist"]) .head :is(#artistLikeBtn, #artistDisBtn, #pinBtn, #dlAllBtn:not(.busy))[hidden] { display: none !important; }
+html.mobile .main:is([data-page="album"], [data-page="artist"]) .head :is(#artistLikeBtn, #artistDisBtn, #pinBtn, #dlAllBtn:not(.busy))::before {
+  content: ""; width: 20px; height: 20px; background: currentColor;
+  -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat;
+}
+html.mobile #artistLikeBtn { --ic: var(--m-i-heart); }
+html.mobile #artistLikeBtn.active { --ic: var(--m-i-heart-on); color: var(--accent); }
+html.mobile #artistDisBtn { --ic: var(--m-i-ban); }
+html.mobile #artistDisBtn.active { color: var(--accent); }
+html.mobile #pinBtn { --ic: var(--m-i-pin); }
+html.mobile #pinBtn.active { --ic: var(--m-i-pin-on); color: var(--accent); }
+html.mobile #dlAllBtn { --ic: var(--m-i-dl); }
+html.mobile #dlAllBtn.done { --ic: var(--m-i-dl-done); color: var(--accent); }
+/* «Моя волна по артисту» — короткая, со значком волны */
+html.mobile .main[data-page="artist"] #artistWaveBtn {
+  height: 42px; min-height: 0; padding: 0 16px 0 12px !important; font-size: 14px !important; border-radius: 21px;
+  display: inline-flex !important; align-items: center; gap: 8px;
+}
+html.mobile .main[data-page="artist"] #artistWaveBtn[hidden] { display: none !important; }
+html.mobile .main[data-page="artist"] #artistWaveBtn::before {
+  content: ""; width: 20px; height: 20px; background: currentColor;
+  -webkit-mask: var(--m-i-wave) center / contain no-repeat; mask: var(--m-i-wave) center / contain no-repeat;
+}
+/* скачивание идёт — кнопка с текстом «Скачано 3 из 7 · ✕» */
+html.mobile .main:is([data-page="album"], [data-page="artist"]) .head #dlAllBtn.busy { height: 42px; min-height: 0; padding: 0 14px !important; font-size: 13px !important; border-radius: 21px; }
+
+/* список — во всю ширину; «Последний релиз» автора — под шапкой, отдельной карточкой */
+html.mobile .main:is([data-page="album"], [data-page="artist"]) .cols { display: flex !important; flex-direction: column; align-items: stretch !important; gap: 12px; }
+html.mobile .main:is([data-page="album"], [data-page="artist"]) .cols > .list { flex: 1 1 auto; width: auto !important; max-width: none !important; order: 2; }
+html.mobile .main:is([data-page="album"], [data-page="artist"]) .cols > .lastAlbum:not([hidden]) { order: 1; width: auto !important; max-width: none !important; }

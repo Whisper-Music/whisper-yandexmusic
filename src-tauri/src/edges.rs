@@ -2,6 +2,8 @@
 //! Трек целиком декодируется (symphonia) и меряется окнами по 50 мс: где начинается и кончается звук и насколько
 //! громко звучат первые и последние секунды. Для треков Яндекса берётся экономное качество — громкость и тишина
 //! те же, а качать меньше. Тяжёлое — в отдельном потоке; результат страница помнит сама.
+//! Заодно — темп и тональность (tone.rs): моно на ~11 кГц собирается при том же декодировании, второй раз
+//! трек не качается. По ним transitions.js подбирает следующий трек волны.
 
 use serde::Serialize;
 use std::io::Cursor;
@@ -15,7 +17,7 @@ use symphonia::core::probe::Hint;
 use tauri::AppHandle;
 
 /// Окно замера, с.
-const WIN: f64 = 0.05;
+pub(crate) const WIN: f64 = 0.05;
 /// Тише этого (RMS окна, dBFS) — тишина.
 const SILENT_DB: f64 = -50.0;
 /// Сколько секунд в начале и в конце звучащей части меряем для перехода.
@@ -32,14 +34,17 @@ pub struct Edges {
     /// громкость первых EDGE секунд звука и последних, dBFS (RMS)
     head_db: f64,
     tail_db: f64,
+    /// темп и тональность (tone.rs)
+    #[serde(flatten)]
+    tone: crate::tone::Tone,
 }
 
-fn db(e: f64) -> f64 {
+pub(crate) fn db(e: f64) -> f64 {
     if e <= 1e-12 { -120.0 } else { 10.0 * e.log10() }
 }
 
-/// Энергия (средний квадрат, моно) по окнам WIN.
-fn windows_of(ms: Box<dyn MediaSource>, ext: Option<&str>) -> Result<(Vec<f64>, f64), String> {
+/// Энергия (средний квадрат, моно) по окнам WIN и моно-сигнал на ~tone::RATE (среднее по dec кадрам).
+pub(crate) fn windows_of(ms: Box<dyn MediaSource>, ext: Option<&str>) -> Result<(Vec<f64>, f64, Vec<f32>, f64), String> {
     let mut hint = Hint::new();
     if let Some(e) = ext {
         hint.with_extension(e);
@@ -60,6 +65,11 @@ fn windows_of(ms: Box<dyn MediaSource>, ext: Option<&str>) -> Result<(Vec<f64>, 
         .make(&track.codec_params, &DecoderOptions::default())
         .map_err(|e| format!("кодек не поддерживается ({e})"))?;
     let per = ((rate * WIN) as usize).max(1);
+    // моно для темпа и тональности: не длиннее 12 минут (≈ 32 МБ), дальше не нужно
+    let dec_n = ((rate / crate::tone::RATE).round() as usize).max(1);
+    let low_rate = rate / dec_n as f64;
+    let cap = (low_rate * 720.0) as usize;
+    let (mut low, mut lacc, mut ln) = (Vec::with_capacity(cap.min(1 << 22)), 0.0f64, 0usize);
     let (mut out, mut acc, mut n, mut frames) = (Vec::new(), 0.0f64, 0usize, 0u64);
     let mut sb: Option<SampleBuffer<f32>> = None;
     loop {
@@ -85,6 +95,15 @@ fn windows_of(ms: Box<dyn MediaSource>, ext: Option<&str>) -> Result<(Vec<f64>, 
         s.copy_interleaved_ref(buf);
         for f in s.samples().chunks(ch) {
             let m = f.iter().map(|&x| x as f64).sum::<f64>() / ch as f64;
+            if low.len() < cap {
+                lacc += m;
+                ln += 1;
+                if ln == dec_n {
+                    low.push((lacc / dec_n as f64) as f32);
+                    lacc = 0.0;
+                    ln = 0;
+                }
+            }
             acc += m * m;
             n += 1;
             frames += 1;
@@ -98,13 +117,13 @@ fn windows_of(ms: Box<dyn MediaSource>, ext: Option<&str>) -> Result<(Vec<f64>, 
     if n > 0 {
         out.push(acc / n as f64);
     }
-    Ok((out, frames as f64 / rate))
+    Ok((out, frames as f64 / rate, low, low_rate))
 }
 
 fn measure(w: &[f64], dur: f64) -> Edges {
     let loud = |e: &f64| db(*e) > SILENT_DB;
     let (Some(first), Some(last)) = (w.iter().position(loud), w.iter().rposition(loud)) else {
-        return Edges { dur, start: 0.0, end: dur, head_db: -120.0, tail_db: -120.0 };
+        return Edges { dur, start: 0.0, end: dur, head_db: -120.0, tail_db: -120.0, ..Default::default() };
     };
     // запас по краям: не обрезать тихую атаку и хвост реверберации
     let mut start = (first as f64 * WIN - 0.05).max(0.0);
@@ -119,7 +138,7 @@ fn measure(w: &[f64], dur: f64) -> Edges {
     let avg = |s: &[f64]| if s.is_empty() { -120.0 } else { db(s.iter().sum::<f64>() / s.len() as f64) };
     let head = &w[first..(first + k).min(last + 1)];
     let tail = &w[(last + 1).saturating_sub(k).max(first)..=last];
-    Edges { dur, start, end, head_db: avg(head), tail_db: avg(tail) }
+    Edges { dur, start, end, head_db: avg(head), tail_db: avg(tail), ..Default::default() }
 }
 
 /// kind: "local" (скачанный, кэш, своя версия из студии — номер трека), "ym" (Яндекс), "wa" (Whisper Archive, uuid).
@@ -138,8 +157,12 @@ pub async fn audio_edges(app: AppHandle, kind: String, id: String) -> Result<Edg
         _ => return Err("неизвестный источник".into()),
     };
     tauri::async_runtime::spawn_blocking(move || {
-        let (w, dur) = windows_of(ms, ext.as_deref())?;
-        Ok(measure(&w, dur))
+        let (w, dur, low, low_rate) = windows_of(ms, ext.as_deref())?;
+        let mut e = measure(&w, dur);
+        // только звучащая часть: тишина по краям темп и тональность не меняет, а считать дольше
+        let (a, b) = ((e.start * low_rate) as usize, ((e.end * low_rate) as usize).min(low.len()));
+        e.tone = crate::tone::analyze(if a < b { &low[a..b] } else { &low }, low_rate);
+        Ok(e)
     })
     .await
     .map_err(|e| e.to_string())?

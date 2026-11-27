@@ -3,6 +3,10 @@
 //   * какие действия в меню показывать — окно «Настроить…», глазик у каждого пункта.
 // Пункты скрываются по подписи: main.js → menuItem спрашивает window.tmenuHidden(подпись), пока строит главное меню
 // (вложенные списки — плейлисты, устройства — не трогаются). localStorage ym_tmenu { right: bool, hide: [ключ] }.
+import { closeTrackMenu, menuHead, menuItem, menuNote, menuReset, openMenu, placeMenu, tmenu } from "../app/menu.js";
+import { openColorEditor } from "../look/colors.js";
+import { curBg, curBgVideo, themeColors } from "../look/config.js";
+import { likesOpen } from "../pages/likes.js";
 (() => {
   const KEY = "ym_tmenu";
   const $t = (id) => document.getElementById(id);

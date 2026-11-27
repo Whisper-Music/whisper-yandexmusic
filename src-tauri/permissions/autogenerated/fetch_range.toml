@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fetch-range"
+description = "Enables the fetch_range command without any pre-configured scope."
+commands.allow = ["fetch_range"]
+
+[[permission]]
+identifier = "deny-fetch-range"
+description = "Denies the fetch_range command without any pre-configured scope."
+commands.deny = ["fetch_range"]

@@ -69,6 +69,7 @@
     let ver = "?";
     try { ver = await window.__TAURI__?.app?.getVersion?.() || "?"; } catch {}
     const de = document.documentElement;
+    // i18n-off — текст файла журнала — для разработчика, по-русски
     const head = [
       "Whisper Music — журнал ошибок",
       `Версия: ${ver}${window.__WEB__ ? " (вкладка браузера)" : ""}`,
@@ -81,6 +82,7 @@
     ];
     const body = list.map((e) => `${stamp(e.at)}  [${e.k}] ${e.t}${e.n > 1 ? `  ×${e.n}` : ""}${e.x ? `\n                     ${e.x}` : ""}`);
     return head.concat(body.length ? body : ["Ошибок нет."]).join("\n") + "\n";
+    // i18n-on
   }
 
 
@@ -121,6 +123,7 @@
     add,
     report,
     count: () => list.length,
+    list: () => list.map((e) => ({ ...e })),
     last: () => list[list.length - 1] || null,
     clear: () => { list = []; try { localStorage.removeItem(KEY); } catch {} for (const f of subs) try { f(); } catch {} },
     on: (f) => subs.add(f),

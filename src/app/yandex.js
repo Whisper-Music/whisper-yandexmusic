@@ -1,3 +1,15 @@
+import { $, fill, ICON, invoke, mkImg, safeUrl, ym } from "./base.js";
+import { fillArtists } from "./list.js";
+import { closeTrackMenu, menuAlive, menuHead, menuItem, menuNote, menuReset, modal, openMenu, placeMenu, showToast, tmenu } from "./menu.js";
+import { goTop, renderTabs, resetView, setActive, setHead } from "./nav.js";
+import { openTrackMenu, setSpeed, trackMenuMain } from "./trackmenu.js";
+import { syncGotRow, trackMin } from "../library/downloads.js";
+import { sty } from "../look/config.js";
+import { directLink, play, saveLast, togglePlay } from "../player/core.js";
+import { fetchLyrics } from "../player/full.js";
+import { isLiked, setHeart, toggleDislike, toggleLike } from "../player/like.js";
+import { buildOrder, effRepeat, modesActive } from "../player/modes.js";
+import { setVol } from "../player/volume.js";
 "use strict";
 // Яндекс Музыка в ядре Whisper (core/whisper-core.js, docs/CORE.md):
 // * какие элементы этого приложения какую роль играют — для общих тем (секция «@@ css whisper-core»);

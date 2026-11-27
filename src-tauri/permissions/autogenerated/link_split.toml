@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-link-split"
+description = "Enables the link_split command without any pre-configured scope."
+commands.allow = ["link_split"]
+
+[[permission]]
+identifier = "deny-link-split"
+description = "Denies the link_split command without any pre-configured scope."
+commands.deny = ["link_split"]

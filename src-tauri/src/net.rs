@@ -669,9 +669,68 @@ pub async fn fetch_media(url: &str) -> Result<Vec<u8>, String> {
     fetch_checked(url).await
 }
 
+/// Файл Яндекса потоком (телевизор — dlna.rs качает его в фоне и отдаёт по мере скачивания): ответ с проверенным
+/// кодом, тело читает вызывающий (или read_media — целиком).
+pub async fn open_media(url: &str) -> Result<reqwest::Response, String> {
+    if !media_url_ok(url) {
+        return Err("Адрес не входит в список разрешённых".into());
+    }
+    let resp = media_client().get(checked_url(url)?).send().await.map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("HTTP {}", resp.status().as_u16()));
+    }
+    Ok(resp)
+}
+
+pub async fn read_media(resp: reqwest::Response) -> Result<Vec<u8>, String> {
+    read_limited(resp, MAX_AUDIO_BODY).await
+}
+
 #[tauri::command]
 pub async fn fetch_bytes(url: String) -> Result<tauri::ipc::Response, String> {
     Ok(tauri::ipc::Response::new(fetch_media(&url).await?))
+}
+
+/// Кусок файла Яндекса (Range): телефон с визуализатором собирает трек по кускам в MediaSource (mobile/stream.js)
+/// и начинает играть после первого, а не ждёт весь файл, как fetch_bytes. Ответ — байты куска и в конце 8 байт
+/// (big-endian): полный размер файла. Кусок — не больше 4 МБ.
+#[tauri::command]
+pub async fn fetch_range(url: String, start: u64, len: u64) -> Result<tauri::ipc::Response, String> {
+    if !media_url_ok(&url) {
+        return Err("адрес не входит в список разрешённых".into());
+    }
+    let len = len.clamp(1, 4 << 20);
+    let resp = media_client()
+        .get(checked_url(&url)?)
+        .header("Range", format!("bytes={}-{}", start, start + len - 1))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let code = resp.status().as_u16();
+    if code == 416 {
+        return Ok(tauri::ipc::Response::new(start.to_be_bytes().to_vec()));   // за концом файла: пусто, размер = start
+    }
+    if code != 206 && code != 200 {
+        return Err(format!("HTTP {code}"));
+    }
+    // «bytes a-b/всего»; сервер без Range (200) отдаёт файл целиком — берём нужный кусок из него
+    let total = resp
+        .headers()
+        .get("content-range")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.rsplit('/').next()?.trim().parse::<u64>().ok())
+        .or(if code == 200 { resp.content_length() } else { None })
+        .unwrap_or(0);
+    let mut body = if code == 206 {
+        read_limited(resp, len as usize).await?
+    } else {
+        let all = read_limited(resp, MAX_AUDIO_BODY).await?;
+        let s = (start as usize).min(all.len());
+        all[s..(s + len as usize).min(all.len())].to_vec()
+    };
+    let total = if total > 0 { total } else { start + body.len() as u64 };
+    body.extend_from_slice(&total.to_be_bytes());
+    Ok(tauri::ipc::Response::new(body))
 }
 
 /// Origin страниц приложения: ответы своих протоколов (wa://, ymlocal://) разрешают CORS только ему,

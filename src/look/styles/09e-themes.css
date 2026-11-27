@@ -1,0 +1,31 @@
+/* themes — Свои темы: «живые» слои (themefx.js), окно «Настроить тему…», кнопки-действия тем, заблокированное расположение.
+   Часть бывшего styles.css: файлы look/styles/* подключаются строго по порядку в index.html (порядок = сила правил). */
+/* «живые» темы (themefx.js): слой украшений и холст частиц — никогда не мешают щелчкам.
+   Сзади — сразу после #dim (над обоями, под окном), спереди — над окном, но под меню (60), подсказками (70) и окнами (80) */
+.fxlayer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; contain: strict; }
+.fxlayer[data-place="front"] { z-index: 50; }
+.fxlayer i { position: absolute; display: block; }
+.fxcanvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 55; pointer-events: none; }
+/* окно «Настроить тему…» (theme.js → openThemeSetup): выбор темы сверху, ниже — эффекты и интро */
+.thsetpick { margin: 0 0 14px; flex-wrap: wrap; gap: 6px; }
+.thsetsec { display: flex; flex-direction: column; gap: 10px; }
+.thsetsec + .thsetsec { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.08); }
+.thsetsec h4 { margin: 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+.thsetsec .status { margin: 0; }
+.thsetrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.thsetempty { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+/* строка, на которой окно открыли правым щелчком по элементу («Цвета этого места…») */
+.ccrow.ccflash { animation: ccFlash 1.6s ease-out; box-shadow: inset 2px 0 0 var(--accent2); }
+@keyframes ccFlash { from { background: color-mix(in srgb, var(--accent2) 42%, transparent); } to { background: transparent; } }
+.ccrow.mixed input[type=color] { opacity: .8; }
+
+/* ---------- возможности своих тем (main.js → applyHooks) ----------
+   Кнопки-действия темы: слой поверх окна, кнопки без вида — где они стоят и как выглядят, решает CSS темы
+   (#thBtns .thbtn[data-th="имя"], .thbtn.on — действие сейчас «включено»). Ниже очереди, окон и полноэкранных режимов. */
+.thbtns { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+.thbtn { position: absolute; pointer-events: auto; }
+.thbtn:disabled { cursor: default; }
+body.vizfull-on .thbtns { visibility: hidden; }
+/* тема задаёт расположение сама — режимы расположения в настройках не действуют */
+#layoutCard.lylock .lyrow { display: none; }
+#layoutCard.lylock::after { content: "Расположение задаёт текущий стиль оформления."; color: var(--muted); font-size: 13px; }

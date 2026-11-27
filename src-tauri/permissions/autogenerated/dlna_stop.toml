@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dlna-stop"
+description = "Enables the dlna_stop command without any pre-configured scope."
+commands.allow = ["dlna_stop"]
+
+[[permission]]
+identifier = "deny-dlna-stop"
+description = "Denies the dlna_stop command without any pre-configured scope."
+commands.deny = ["dlna_stop"]

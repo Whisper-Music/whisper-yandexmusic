@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-engine-dj"
+description = "Enables the engine_dj command without any pre-configured scope."
+commands.allow = ["engine_dj"]
+
+[[permission]]
+identifier = "deny-engine-dj"
+description = "Denies the engine_dj command without any pre-configured scope."
+commands.deny = ["engine_dj"]

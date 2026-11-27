@@ -9,6 +9,9 @@
 // устройство сопоставляют sound.js и engine.js. Устройство вне Windows без названия — профилей нет.
 //
 // Хранение: localStorage ym_devprof = { on, cur, map: { "<название в нижнем регистре>": { name, vol, sound, excl, eq, at } } }.
+import { invoke, lsJSON } from "../app/base.js";
+import { showToast } from "../app/menu.js";
+import { setVol } from "./volume.js";
 (() => {
   const KEY = "ym_devprof", MAX_DEV = 24, POLL_MS = 15000, REMEMBER_MS = 2000;
   const d0 = lsJSON(KEY, {}, (v) => v && typeof v === "object" && !Array.isArray(v));

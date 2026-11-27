@@ -22,6 +22,7 @@ mod desktop;
 #[cfg(desktop)]
 #[path = "../../src/core/rust/discord.rs"]
 mod discord;
+mod dlna;
 mod download;
 mod edges;
 #[cfg(desktop)]
@@ -35,6 +36,12 @@ mod hotkeys;
 mod idle;
 #[cfg(desktop)]
 mod linkdl;
+/// альбом по ссылке: длинное видео по главам/паузам, плейлист (поверх linkdl)
+#[cfg(desktop)]
+mod linkset;
+/// нарезка m4a без перекодирования (для linkset)
+#[cfg(desktop)]
+mod m4acut;
 mod lyrics;
 #[cfg(desktop)]
 mod mini;
@@ -50,12 +57,14 @@ mod perf;
 mod obs;
 #[cfg(desktop)]
 mod power;
+mod proxy;
 mod secret;
 #[cfg(desktop)]
 mod shell;
 mod sleep;
 mod studio;
 mod theme;
+mod tone;
 mod themelib;
 #[cfg(desktop)]
 mod thumbbar;
@@ -120,6 +129,7 @@ macro_rules! commands {
             net::ym_track_format,
             net::ym_lyrics,
             net::fetch_bytes,
+            net::fetch_range,
             auth::token_exists,
             auth::token_store,
             auth::token_clear,
@@ -284,6 +294,15 @@ pub fn run() {
         // свой звуковой движок (эксклюзивный WASAPI)
         engine::engine_available,
         engine::engine_load,
+        engine::engine_dj,
+        dlna::dlna_scan,
+        dlna::dlna_cast,
+        dlna::dlna_play,
+        dlna::dlna_pause,
+        dlna::dlna_seek,
+        dlna::dlna_volume,
+        dlna::dlna_status,
+        dlna::dlna_stop,
         engine::engine_play,
         engine::engine_pause,
         engine::engine_seek,
@@ -296,6 +315,12 @@ pub fn run() {
         linkdl::link_tool_remove,
         linkdl::link_download,
         linkdl::link_cancel,
+        linkset::link_probe,
+        linkset::link_download_long,
+        linkset::link_silences,
+        linkset::link_split,
+        linkset::link_forget,
+        linkset::link_download_list,
         notify::notify_show,
         notify::notify_take,
         notify::notify_layout,

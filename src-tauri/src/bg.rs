@@ -147,6 +147,12 @@ pub fn remember_one(app: &AppHandle, path: &Path) -> Option<Entry> {
     remember(app, &[path.to_path_buf()]).into_iter().next()
 }
 
+/// Несколько своих файлов разом (linkset.rs: треки альбома по ссылке) — номера по порядку списка.
+pub fn remember_files(app: &AppHandle, paths: &[PathBuf]) -> Vec<Entry> {
+    let files: Vec<PathBuf> = paths.iter().filter(|p| std::fs::symlink_metadata(p).is_ok_and(|m| m.is_file())).cloned().collect();
+    remember(app, &files)
+}
+
 /// Кнопка «Выбрать папку обоев»: системный диалог выбора папки.
 #[tauri::command]
 pub async fn bg_dir_pick(app: AppHandle) -> Result<Option<Vec<Entry>>, String> {

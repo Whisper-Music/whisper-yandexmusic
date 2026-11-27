@@ -275,7 +275,7 @@ fn duration_ms(b: &[u8]) -> u64 {
 }
 
 /// Вырезать [start, end) мс: целые кадры, чьё начало внутри отрезка. Возвращает байты и настоящие границы.
-fn mp3_cut(b: &[u8], start_ms: u64, end_ms: u64) -> Result<(Vec<u8>, u64, u64), String> {
+pub(crate) fn mp3_cut(b: &[u8], start_ms: u64, end_ms: u64) -> Result<(Vec<u8>, u64, u64), String> {
     if end_ms <= start_ms || end_ms - start_ms < MIN_LEN_MS {
         return Err("Отрезок должен быть длиннее секунды".into());
     }

@@ -1,6 +1,8 @@
 // Обновления приложения: Настройки → Приложение → «Обновления». Проверка и установка — в Rust (src-tauri/src/update.rs):
 // он берёт latest.json последнего выпуска на GitHub, проверяет подпись файла и ставит новую версию.
 // Здесь — только кнопки, сообщение о новой версии и ход загрузки.
+import { $, invoke } from "../app/base.js";
+import { showToast } from "../app/menu.js";
 (() => {
   const KEY = "ym_update";
   const $u = (id) => document.getElementById(id);

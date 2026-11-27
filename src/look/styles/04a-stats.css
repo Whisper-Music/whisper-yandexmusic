@@ -1,0 +1,82 @@
+/* stats — Страница «Статистика» по лайкам: карточки, списки, кольца, люди, подсказка при наведении.
+   Часть бывшего styles.css: файлы look/styles/* подключаются строго по порядку в index.html (порядок = сила правил). */
+.stats { display: flex; flex-direction: column; gap: 16px; padding-bottom: 20px; }
+.stats > div { display: flex; flex-direction: column; gap: 16px; }
+.statcards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.statcard { flex-direction: row; align-items: center; gap: 16px; padding: 16px 20px; }
+.statcard svg { width: 34px; height: 34px; flex: none; color: var(--accent); }
+.statcard small { display: block; font-size: 13px; color: var(--muted); }
+.statcard b { display: block; margin-top: 2px; font-size: 22px; font-weight: 600; }
+.statgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.statgrid .stbox { height: 100%; min-height: 480px; }
+.stbox { gap: 12px; }
+.stbox h3 { font-size: 18px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.stlist, .stlegend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.stlist { gap: 8px; }
+.stlist li { display: flex; align-items: center; gap: 14px; padding: 4px; border-radius: 10px; cursor: pointer; transition: background .15s; }
+.stlist li:hover { background: rgba(255,255,255,.07); }
+.stlist img { width: 52px; height: 52px; flex: none; border-radius: 8px; object-fit: cover; background: rgba(255,255,255,.08); }
+.stlist .t, .stalbum b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stlist .s, .stalbum span { display: block; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stlist div { min-width: 0; }
+.stalbums { display: grid; grid-template-columns: repeat(2, minmax(0, 150px)); justify-content: space-around; gap: 14px; }
+.stalbum { cursor: pointer; min-width: 0; }
+.stalbum img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: rgba(255,255,255,.08); transition: transform .2s; }
+.stalbum:hover img { transform: scale(1.03); }
+.stalbum b { margin-top: 8px; font-size: 14px; }
+.stdonut { position: relative; width: 190px; height: 190px; margin: 4px auto 6px; }
+.stdonut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.stdonut circle { fill: none; stroke-width: 16; }
+.stdonut .mid { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.stdonut .mid b { font-size: 22px; font-weight: 600; }
+.stdonut .mid small { font-size: 12px; color: var(--muted); }
+.stlegend li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid rgba(255,255,255,.07); min-width: 0; }
+.stlegend li:first-child { border-top: 0; }
+.stlegend .dot { width: 12px; height: 12px; flex: none; border-radius: 50%; }
+.stlegend .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stlegend .pct { margin-left: auto; color: var(--muted); }
+
+:root[data-style="royal"] .stbox h3 { border-bottom-color: color-mix(in srgb, var(--accent) 28%, transparent); }
+:root[data-style="royal"] .stlegend li { border-top-color: color-mix(in srgb, var(--accent) 22%, transparent); }
+
+.stpeople { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 20px; padding-top: 4px; }
+.stperson { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; cursor: pointer; }
+.stperson img { display: block; width: 100%; max-width: 190px; aspect-ratio: 1; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,.08); box-shadow: 0 0 0 1px rgba(255,255,255,.1); transition: transform .2s; }
+.stperson:hover img { transform: scale(1.04); }
+.stperson .rank { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; font-weight: 600; }
+.stperson .rank svg { width: 16px; height: 16px; color: var(--accent); }
+.stperson .nm { max-width: 100%; margin-top: 2px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stperson .hrs, .stperson .cnt { max-width: 100%; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stperson .hrs { margin-top: 4px; }
+:root[data-style="royal"] .stperson img { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+@media (max-width: 1100px) {
+  .statcards, .statgrid { grid-template-columns: minmax(0, 1fr); }
+  .stpeople { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+
+.stalbum { cursor: default; }
+.stpic { position: relative; display: block; width: 100%; padding: 0; border: 0; background: none; border-radius: 8px; cursor: pointer; overflow: hidden; }
+.stalbum:hover img { transform: none; }
+.stpic:hover img { transform: scale(1.04); }
+.stalbum .stplay { position: absolute; right: 8px; bottom: 8px; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--btn-fill); color: var(--on-accent, #0b0618); opacity: 0; transform: translateY(6px); transition: opacity .15s, transform .15s; box-shadow: 0 3px 10px rgba(0,0,0,.5); }
+.stalbum .stpic:hover .stplay, .stalbum .stpic:focus-visible .stplay { opacity: 1; transform: none; }
+.stlink { display: block; max-width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stlink.ttl { margin-top: 8px; font-size: 14px; font-weight: 600; }
+.stlink:hover:not(:disabled) { text-decoration: underline; }
+.stlink:disabled { cursor: default; }
+.stsub { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-size: 13px; color: var(--muted); }
+.stalbum .stsub .stlink.art { color: var(--muted); }
+.stalbum .stsub .stlink.art:hover { color: var(--text); }
+#boxShare { position: relative; }
+.stdonut svg { overflow: visible; }
+.stdonut circle { transition: stroke-width .18s ease, opacity .18s ease; }
+.stdonut circle.hot { stroke-width: 22; }
+.stdonut circle.dim { opacity: .45; }
+.stlegend li { transition: background .15s; border-radius: 8px; }
+.stlegend li.hot { background: rgba(255,255,255,.07); }
+.stcardhover { position: absolute; z-index: 5; display: flex; align-items: center; gap: 12px; max-width: 260px; padding: 10px 14px 10px 10px; border-radius: 14px; pointer-events: none; background: rgba(15,10,32,.94); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); box-shadow: 0 8px 24px rgba(0,0,0,.55); }
+.stcardhover[hidden] { display: none; }
+.stcardhover img { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; flex: none; }
+.stcardhover b { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stcardhover small { display: block; font-size: 12px; color: var(--muted); }

@@ -5,6 +5,9 @@ node_modules/
 dist/
 .vite/
 
+# Автотесты: отчёт, снимки прогона, журнал (снимки-образцы tests/web/*-snapshots — в git)
+tests/web/out/
+
 # Tauri / Rust build
 src-tauri/target/
 

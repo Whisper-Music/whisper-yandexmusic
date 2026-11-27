@@ -1,3 +1,11 @@
+import { $, DynCss, invoke } from "../app/base.js";
+import { imageGuard } from "../app/imgguard.js";
+import { idle } from "../app/list.js";
+import { modal, showToast } from "../app/menu.js";
+import { clearBg, IDB, prepareVideo, setBgBlob, sniffVideo } from "./bg.js";
+import { CC_ITEMS } from "./colors.js";
+import { applyCfg, baseOf, bgKey, bgKinds, bgPosters, bgUrls, BUILTIN, feature, saveCfg, STYLE_DEF, syncControls, TH_ACTIONS,
+  themeFeatures, themeFx, themeFxSet, themeHooks, themeReady } from "./config.js";
 "use strict";
 // Свои стили оформления из файлов .wmt (Whisper Music Theme). Формат: core/wmt.js и docs/WMT-FORMAT.md,
 // разбор и привязка CSS темы, фильтр безопасности — core/theme-css.js (общие для всех приложений Whisper).
@@ -567,6 +575,7 @@
     const css = builtin
       ? `/* Правила стиля «${NAMES[st]}». Пиши обычный CSS — приложение само привяжет его к этому стилю:\n   «.panel {…}» станет «:root[data-style="${manifest.id}"] .panel {…}», «:root {…}» — переменные стиля.\n   Всё, что не указано здесь, берётся из общего оформления приложения.\n   Цвета, текст и шрифты из tokens главнее одноимённых переменных здесь. */\n\n` + (await extractCss(st))
       : orig?.css(APP) || "";
+    // i18n-off — комментарий в сохранённом файле темы, не экран
     const comment = [
       "Whisper Music Theme — файл темы оформления. Описание формата: docs/WMT-FORMAT.md",
       "Как сделать свой стиль: поменяй manifest.id и name, поправь цвета в tokens и правила в «@@ css whisper-music»,",
@@ -574,6 +583,7 @@
       "Тема с фоном — это zip, переименованный в .wmt: внутри этот текст (theme.wmt) и картинка background.jpg/png/mp4…",
       "Если стиль сломал вид окна: Ctrl+Shift+Backspace вернёт встроенный «Королевский».",
     ].join("\n");
+    // i18n-on
     // виджет для OBS: у своего стиля — секции из его файла как были; у копии встроенного — заготовка-подсказка
     const obsCss = orig?.css(OBS) || "/* Виджет «Сейчас играет» для OBS (Настройки → Виджет для OBS).\n   Разметка, классы и переменные — docs/WMT-FORMAT.md, раздел «Виджет для OBS». Например:\n   .w-bg { border-radius: 0; }\n   .w-title { letter-spacing: .04em; } */";
     const obsSettings = orig?.settings(OBS) || {};

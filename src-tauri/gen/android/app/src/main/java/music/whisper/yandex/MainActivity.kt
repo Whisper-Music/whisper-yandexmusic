@@ -287,7 +287,7 @@ class MainActivity : TauriActivity() {
         MediaService.update(
           this@MainActivity,
           MediaService.State(
-            title, j.optString("artist").take(300), j.optString("cover").take(2000),
+            title, j.optString("artist").take(300), j.optString("album").take(300), j.optString("cover").take(2000),
             j.optLong("duration").coerceAtLeast(0), j.optLong("position").coerceAtLeast(0), playing
           )
         )

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dlna-status"
+description = "Enables the dlna_status command without any pre-configured scope."
+commands.allow = ["dlna_status"]
+
+[[permission]]
+identifier = "deny-dlna-status"
+description = "Denies the dlna_status command without any pre-configured scope."
+commands.deny = ["dlna_status"]

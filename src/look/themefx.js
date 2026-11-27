@@ -1,3 +1,7 @@
+import { invoke } from "../app/base.js";
+import { showToast } from "../app/menu.js";
+import { saveLast } from "../player/core.js";
+import { hook, themeFx } from "./config.js";
 "use strict";
 // «Живые» темы: то, чего на одном CSS не сделать, приложение даёт теме готовым — а тема только описывает,
 // как это выглядит. Своего кода у темы по-прежнему нет. Разбор настроек — theme.js → setHooks (themeHooks[id]),
@@ -357,16 +361,28 @@
   // applyCfg (а с ним и это) зовут часто — пересобираем, только когда что-то реально поменялось
   // Параллаксу нужна видеокарта и для рисования слоёв (shell.rs → gpu_raster), а включить её можно только при запуске.
   // Отправляем, когда тема устоялась: при запуске первый вызов идёт ещё до разбора темы (pointer = false).
-  let gpuSent = null, gpuTold = false, gpuT = 0;
+  // Метка не снимается (shell.rs): хоть раз включил параллакс-тему — дальше приложение всегда запускается с видеокартой,
+  // и переключение тем туда-обратно больше не лагает. Первый раз — подсказка с кнопкой: перезапуск сразу, а трек
+  // продолжит играть с того же места (ym_gpu_resume → core.js restorePlayer).
+  let gpuSent = false, gpuTold = false, gpuT = 0;
   function gpu(on) {
     clearTimeout(gpuT);
+    if (!on || gpuSent) return;
     gpuT = setTimeout(() => {
-      if (on === gpuSent) return;
-      gpuSent = on;
-      invoke("gpu_raster", { on }).then((later) => {
-        if (later && !gpuTold) { gpuTold = true; showToast("Перезапусти приложение — параллакс станет плавным", 5000); }
+      gpuSent = true;
+      invoke("gpu_raster", { on: true }).then((later) => {
+        if (!later || gpuTold) return;
+        gpuTold = true;
+        showToast("Параллакс станет плавным после перезапуска", 12000, { action: { label: "Перезапустить", fn: gpuRestart } });
       }).catch(() => {});
     }, 2000);
+  }
+  function gpuRestart() {
+    try {
+      saveLast(audio ? audio.currentTime : 0);
+      if (audio && !audio.paused) localStorage.setItem("ym_gpu_resume", "1");
+    } catch {}
+    invoke("gpu_raster", { on: true, restart: true }).catch(() => {});
   }
 
   window.themeFxApply = () => {

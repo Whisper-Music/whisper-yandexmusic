@@ -4,6 +4,10 @@
 // в боковой панели над «Профилем»; настройки уходят обратно, окно появляется, вкладка показывает «вернулись».
 // Пока интерфейс во вкладке, её настройки раз в 20 с (если что-то менялось) уходят в Rust: окно могут вернуть
 // и из трея («Открыть»), тогда кнопку во вкладке не нажимали.
+import { invoke } from "../app/base.js";
+import { IDB } from "../look/bg.js";
+import { saveCfg } from "../look/config.js";
+import { togglePlay } from "../player/core.js";
 (() => {
   const WEB = !!window.__WEB__;
   const $w = (id) => document.getElementById(id);

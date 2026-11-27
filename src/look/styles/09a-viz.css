@@ -1,0 +1,60 @@
+/* viz — Визуализатор: стили в настройках, растворение краёв, весь экран, видеообои под размытием.
+   Часть бывшего styles.css: файлы look/styles/* подключаются строго по порядку в index.html (порядок = сила правил). */
+/* ---------- настройки: стили аудиовизуализатора (видны только когда он включён) ---------- */
+.vizstyles { display: flex; flex-direction: column; gap: 10px; animation: vizIn .22s ease-out; }
+@keyframes vizIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+:root[data-anim="off"] .vizstyles { animation: none; }
+.vizpick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.vizopt { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px; }
+.vizopt svg { flex: none; }
+
+/* ---------- визуализатор: края холста плавно растворяются, чтобы не было видно прямоугольника ---------- */
+#viz, #vizFullCv {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+  mask-composite: intersect;
+}
+#vizFullCv {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent), linear-gradient(180deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent), linear-gradient(180deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+/* кнопка «на весь экран» — в правом нижнем углу страницы волны, как в видеоплеерах */
+.wavepage { position: relative; }
+.vizfsbtn {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: var(--muted);
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  transition: color .15s, background .15s, box-shadow .2s, transform .15s;
+}
+.vizfsbtn:hover { color: var(--text); background: rgba(255,255,255,.12); box-shadow: 0 0 16px color-mix(in srgb, var(--glow-c) 40%, transparent); transform: scale(1.06); }
+.wavepage > .vizfsbtn { position: absolute; right: 4px; bottom: 6px; z-index: 2; }
+:root[data-style="royal"] .vizfsbtn { border-radius: 3px; border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); }
+:root[data-style="steam"] .vizfsbtn { border-radius: 3px; border-color: var(--ln); color: var(--m); background: linear-gradient(180deg, #1f1811, #120d09); }
+
+/* полноэкранный режим: остаются только фон и визуализатор */
+.vizfull { position: fixed; inset: 0; z-index: 80; animation: vfIn .35s ease-out; }
+.vizfull canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+@keyframes vfIn { from { opacity: 0; } to { opacity: 1; } }
+body.vizfull-on .app, body.vizfull-on .titlebar { opacity: 0; visibility: hidden; transition: opacity .3s, visibility 0s .3s; }
+.vfctl { position: absolute; right: 22px; bottom: 22px; display: flex; align-items: center; gap: 14px; transition: opacity .4s; }
+.vfhint { font-size: 12px; color: rgba(255,255,255,.55); text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.vizfull.idle { cursor: none; }
+.vizfull.idle .vfctl { opacity: 0; pointer-events: none; }
+:root[data-anim="off"] .vizfull { animation: none; }
+
+/* весь экран: столбцы стоят на нижнем крае — маска только по бокам; фон чётче и светлее */
+#vizFullCv {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent);
+}
+#bg { transition: filter .5s ease; }
+#dim { transition: opacity .5s ease; }
+body.vizfull-on #bg { filter: blur(0px); }
+body.vizfull-on #dim { opacity: .4; }
+:root[data-anim="off"] #bg, :root[data-anim="off"] #dim { transition: none; }
+
+/* видеообои: под тем же размытием, что и картинка */
+#bgVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.droplink { margin-top: 6px; font-size: 12px; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; background: none; padding: 2px 6px; }
+.droplink:hover { color: var(--text); }
