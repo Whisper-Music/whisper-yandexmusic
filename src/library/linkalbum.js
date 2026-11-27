@@ -1,12 +1,16 @@
 // linkalbum.js — альбом по ссылке (Rust — linkset.rs поверх linkdl.rs). Зовёт linkadd.js перед обычным скачиванием:
-//   * плейлист YouTube / SoundCloud → выбрать треки → скачать → в новый альбом Whisper Archive или все в «Лайки»;
+//   * плейлист YouTube / SoundCloud → выбрать треки → скачать → в новый альбом Whisper Archive, в новый плейлист
+//     Яндекс Музыки (файлы — на этом компьютере, в плейлисте их показывает library/pllocal.js) или все в «Лайки»;
 //   * длинное видео (сборник, концерт, альбом одним роликом: длиннее 20 минут или с главами) → предложить разделить:
 //     по главам из описания, а нет глав — по паузам между песнями; список кусков можно поправить (название, начало,
-//     убрать, добавить) → нарезка без перекодирования → туда же: альбом в архиве или «Лайки»;
+//     убрать, добавить) → нарезка без перекодирования → туда же: альбом в архиве, плейлист Яндекса или «Лайки»;
 //   * по ссылке, похоже, не музыка (категория YouTube, слова в названии) → спросить «всё равно скачать?».
 // Сохраняет тем же путём, что перетащенный файл: drop_audio_local / drop_audio_archive по номеру файла (bg.rs).
 import { invoke } from "../app/base.js";
 import { hideToast, modal, showToast } from "../app/menu.js";
+import { navigate } from "../app/nav.js";
+import { plCreate, plErr, showPlaylist } from "../pages/playlists.js";
+import { plLocalAdd } from "./pllocal.js";
 
 const W = window.Whisper;
 const err = (e) => String(e?.message || e || "ошибка").replace(/^Error:\s*/, "");
@@ -35,7 +39,7 @@ function parseTime(t) {
 // Строки целиком, без склейки: так их переводит словарь (i18n/en.js).
 async function withProgress(src, fn, count = 0) {
   let last = 0;
-  showToast(src ? `Скачивается с ${src}…` : "Смотрю, что по ссылке…", 0, { action: cancelAct });
+  showToast(src ? `Скачивается с ${src}…` : "Проверка ссылки…", 0, { action: cancelAct });
   const un = await window.__TAURI__?.event?.listen("link-progress", (e) => {
     const p = e.payload || {};
     if (p.stage === "update") return showToast("Обновляется yt-dlp…", 0, { action: cancelAct });
@@ -110,9 +114,9 @@ function albumDialog({ mode, probe, rows, duration, note }) {
     const what = el("p", "lanote lawhat");
     what.append(el("b", "", `«${probe.title}»`), el("span", "", split ? fmt(duration)
       : probe.count > rows.length ? `первые ${rows.length} из ${probe.count}` : plTracks(rows.length)));
-    box.append(what, el("p", "lanote", split
-      ? (note || "Начало каждого трека можно поправить; лишние — снять галочку.")
-      : `Можно взять до ${LIST_MAX} треков за раз.`));
+    box.append(what);
+    const hint = split ? note : `Можно взять до ${LIST_MAX} треков за раз.`;
+    if (hint) box.append(el("p", "lanote", hint));
 
     const meta = el("div", "lameta");
     const albF = el("input", "field"); albF.maxLength = 75; albF.value = (probe.album || probe.title || "").slice(0, 75); albF.placeholder = "Название альбома";
@@ -178,7 +182,8 @@ function albumDialog({ mode, probe, rows, duration, note }) {
     // куда
     const arch = W?.modules?.archive;
     const canArch = !!arch?.connected?.();
-    let dest = canArch ? "archive" : "likes";
+    const canYa = !!window.uid;
+    let dest = canArch ? "archive" : canYa ? "yandex" : "likes";
     const where = el("div", "dropwhere lawhere");
     const opt = (v, label, small, ok = true) => {
       const b = el("button", "dropopt" + (dest === v ? " on" : "")); b.type = "button"; b.disabled = !ok;
@@ -188,6 +193,7 @@ function albumDialog({ mode, probe, rows, duration, note }) {
     };
     where.append(
       opt("archive", "Новый альбом в Whisper Archive", canArch ? "Слушать с любого устройства и делиться" : "Сначала войди в архив: Настройки → Интеграции", canArch),
+      opt("yandex", "Новый плейлист в Яндекс Музыке", canYa ? "Треки хранятся на этом компьютере и видны в плейлисте в приложении" : "Сначала войди в Яндекс", canYa),
       opt("likes", "Все в «Лайки»", "Каждый трек — отдельно, с названием альбома в сведениях"),
     );
 
@@ -215,7 +221,7 @@ function albumDialog({ mode, probe, rows, duration, note }) {
     box.onsubmit = (e) => {
       e.preventDefault();
       const album = albF.value.trim();
-      if (dest === "archive" && !album) { msg.textContent = "Дай альбому название"; albF.focus(); return; }
+      if (dest !== "likes" && !album) { msg.textContent = dest === "yandex" ? "Дай плейлисту название" : "Дай альбому название"; albF.focus(); return; }
       let picked;
       if (split) {
         const E = ends();
@@ -249,7 +255,7 @@ async function toArchive(pieces, { album, artist }) {
       let r;
       try { r = await invoke("drop_audio_archive", args); }
       catch (e) {
-        if (/подожд|несколько минут|два трека/i.test(err(e)) && tries < 12) { showToast(`Архив просит подождать — продолжу через минуту (готово ${i} из ${pieces.length})`, 0); await sleep(60000); continue; }
+        if (/подожд|несколько минут|два трека/i.test(err(e)) && tries < 12) { showToast(`Архив просит подождать — продолжение через минуту (готово ${i} из ${pieces.length})`, 0); await sleep(60000); continue; }
         throw e;
       }
       if (r.status < 200 || r.status >= 300) {
@@ -280,10 +286,34 @@ async function toLikes(pieces, { album, artist, link }) {
     window.studioAdd?.(it);
   }
 }
+// плейлист Яндекса: сам плейлист — на сервере Яндекса (личный), файлы — свои треки на этом компьютере (studio.rs);
+// где какой трек стоит, помнит pllocal.js. Каждый трек записывается сразу — оборвётся на середине, готовое останется.
+async function toYandex(pieces, { album, artist, link }) {
+  let pl;
+  try { pl = await plCreate(album.slice(0, 100), false); }
+  catch (e) { throw new Error("не удалось создать плейлист: " + plErr(e)); }
+  for (let i = 0; i < pieces.length; i++) {
+    const p = pieces[i];
+    showToast(`В плейлист: трек ${i + 1} из ${pieces.length}…`, 0);
+    const who = p.artist || artist;
+    const meta = { artists: who ? [{ name: who.slice(0, 120) }] : [], albums: album ? [{ title: album.slice(0, 200) }] : [] };
+    const it = await invoke("drop_audio_local", { pick: p.entry.id, title: p.title, meta, duration: p.durationMs || null, replaces: null, liked: false, link });
+    window.studioAdd?.(it);
+    plLocalAdd(pl.kind, [it.id]);
+  }
+  return pl;
+}
 async function save(pieces, choice, link) {
+  const n = plTracks(pieces.length);
+  if (choice.dest === "yandex") {
+    const pl = await toYandex(pieces, { ...choice, link });
+    showToast(`Готово: ${n} в плейлисте «${pl.title}» в Яндекс Музыке`, 8000,
+      { kind: "ok", action: { label: "Открыть", fn: () => navigate(() => showPlaylist(pl.kind)) } });
+    return;
+  }
   if (choice.dest === "archive") await toArchive(pieces, choice);
   else await toLikes(pieces, { ...choice, link });
-  showToast(choice.dest === "archive" ? `Готово: ${plTracks(pieces.length)} в альбоме «${choice.album}» в Whisper Archive` : `Готово: ${plTracks(pieces.length)} в «Лайках»`, 6000, { kind: "ok" });
+  showToast(choice.dest === "archive" ? `Готово: ${n} в альбоме «${choice.album}» в Whisper Archive` : `Готово: ${n} в «Лайках»`, 6000, { kind: "ok" });
 }
 
 // ---------- маршрут ссылки ----------
@@ -310,7 +340,7 @@ export async function routeLink(chk) {
   if (list) return listFlow(probe);
   const dur = probe.duration || 0;
   if (dur <= LONG && probe.chapters.length < 2) return "single";
-  if (dur > MAX_LONG) throw new Error(`Запись длиннее 4 часов (${fmt(dur)}) — такие не скачиваем`);
+  if (dur > MAX_LONG) throw new Error(`Запись длиннее 4 часов (${fmt(dur)}) — такие не скачиваются`);
   const opts = [{
     value: "split", label: "Разделить на треки",
     note: probe.chapters.length >= 2 ? `По главам из описания: ${probe.chapters.length}` : "По паузам между песнями — список можно будет поправить",
@@ -329,7 +359,7 @@ async function splitFlow(url, probe) {
   if (probe.chapters.length >= 2) {
     rows = probe.chapters.map((c, i) => ({ title: c.title || `Трек ${i + 1}`, start: c.start }));
   } else {
-    showToast("Ищу паузы между песнями…", 0);
+    showToast("Поиск пауз между песнями…", 0);
     const pts = await invoke("link_silences", { token: long.token }).catch(() => []);
     rows = [0, ...pts].map((s, i) => ({ title: `Трек ${i + 1}`, start: s }));
     note = pts.length ? `По паузам нашлось: ${plTracks(pts.length + 1)}. Проверь границы и дай названия.` : "Пауз между песнями не нашлось — добавь треки и впиши, где каждый начинается.";
@@ -338,7 +368,7 @@ async function splitFlow(url, probe) {
   rows[0].start = 0;
   const choice = await albumDialog({ mode: "split", probe, rows, duration, note });
   if (!choice) { invoke("link_forget", { token: long.token }).catch(() => {}); return "cancel"; }
-  showToast("Режу на треки…", 0);
+  showToast("Нарезка на треки…", 0);
   const pieces = await invoke("link_split", { token: long.token, parts: choice.parts });
   await save(pieces, choice, url);
   invoke("link_forget", { token: long.token }).catch(() => {});

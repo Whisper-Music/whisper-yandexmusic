@@ -8,7 +8,7 @@ import { cover } from "./list.js";
 import { menuAlive, menuHead, menuItem, menuNote, menuReset, menuSep, openMenu, placeMenu, tmenu } from "./menu.js";
 import { deleteDownload, downloadTrack } from "../library/downloads.js";
 import { toggleArtistDislike } from "../pages/artistprefs.js";
-import { plAddTrack, plCount, plCoverEl, plCoverFromTrack, plCreateDialog, plErr, plLoadList, plMoveTrack, plRemoveTrack } from "../pages/playlists.js";
+import { plAddTrack, plCount, plCoverEl, plCoverFromTrack, plCreateDialog, plErr, plLoadList, plLocalDrop, plMoveTrack, plRemoveTrack } from "../pages/playlists.js";
 import { isShared, isStudio } from "../player/like.js";
 const $ = (s) => document.querySelector(s);
 
@@ -83,6 +83,8 @@ function trackMenuBuild(t, ctx) {
   if (isStudio(t.id) || isShared(t.id)) {
     if (bottom) { menuSpeed(); menuSep(); }
     if (isStudio(t.id)) window.Whisper?.ui.trackMenu.build(t, ctx);     // у чужой версии пунктов модулей нет
+    // свой трек в плейлисте Яндекса (library/pllocal.js): убрать его оттуда, файл останется
+    if (ctx?.local) menuItem(ICON.remove, "Убрать из плейлиста", () => plLocalDrop(ctx.kind, ctx.local, t), { danger: true });
     menuSep();
     if (window.eqOpen) menuItem(ICON.eq || "", "Эквалайзер", () => window.eqOpen());
     if (bottom) { window.outMenu?.(t, ctx); window.soundMenu?.(t, ctx); }

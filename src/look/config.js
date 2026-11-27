@@ -446,7 +446,7 @@ function sniffImage(b) {
 $("#deskBtn").onclick = async () => {
   const btn = $("#deskBtn");
   btn.disabled = true;
-  bgNote("Беру обои с рабочего стола…");
+  bgNote("Загрузка обоев с рабочего стола…");
   try {
     let buf;
     try { buf = await invoke("desktop_wallpaper"); }

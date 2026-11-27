@@ -40,7 +40,7 @@ async function share(it) {
   try { token = await invoke("wa_token_exists"); } catch {}
   if (!token) { toast("Чтобы делиться версиями, войди в Whisper Archive: Настройки → Интеграции", 6000); return; }
   sharing.add(it.id);
-  toast("Готовлю ссылку…", 2500);
+  toast("Подготовка ссылки…", 2500);
   try {
     const sh = sharedAll();
     let album = UUID.test(sh[it.id]?.album || "") ? sh[it.id].album : "";
@@ -89,7 +89,7 @@ window.studioOpenShared = async (albumId, key) => {
     toast("Чтобы слушать версию в приложении, войди в Whisper Archive: Настройки → Интеграции. Или открой ссылку в браузере", 8000);
     return;
   }
-  toast("Открываю версию…", 2000);
+  toast("Открытие версии…", 2000);
   try {
     const r = await invoke("wa_invite_open", { id: albumId, key });
     if (my !== openingShared) return;

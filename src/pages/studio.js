@@ -57,6 +57,8 @@ import { saveShared, share, shareSetup, sharedAll, sharing } from "./studioshare
     studio: { src: it.srcId, from: it.startMs, to: it.endMs },
   });
   window.studioLiked = (id) => !!byId(id)?.liked;
+  // свой трек как трек плеера — для плейлистов со своими треками (library/pllocal.js); нет такого — null
+  window.studioRaw = (id) => { const it = byId(String(id)); return it ? toRaw(it) : null; };
   // лайкнутые версии для страницы «Лайки» (main.js → withStudioLikes): трек и время лайка, мс
   // (у версий, лайкнутых до того, как время стало записываться, — время сохранения)
   // замена трека (origin «replace») — не отдельный трек: в «Лайках» не появляется, лайк ставится самому треку Яндекса
@@ -82,6 +84,7 @@ import { saveShared, share, shareSetup, sharedAll, sharing } from "./studioshare
     try { items = await invoke("studio_list"); } catch { items = []; }
     loaded = true;
     paintList(); refreshHearts();
+    window.plLocalRefresh?.();          // pages/playlists.js: свои треки в открытом плейлисте
     if (items.some((x) => x.liked)) likesRedraw();
   }
   // libsync.js: из архива пришли треки или лайки с другого устройства — перечитать список с диска
@@ -232,7 +235,7 @@ import { saveShared, share, shareSetup, sharedAll, sharing } from "./studioshare
     const im = $s("stuCover"); im.src = cover(t, "200x200") || COVER_W;
     $s("stuTitle").textContent = t.title || "Без названия";
     $s("stuArtist").textContent = (t.artists || []).map((a) => a.name).join(", ");
-    $s("stuState").textContent = ed.loading ? "Загружаю трек…" : ed.error;
+    $s("stuState").textContent = ed.loading ? "Загрузка трека…" : ed.error;
     $s("stuState").hidden = !ed.loading && !ed.error;
     wave.classList.toggle("busy", !ok);
     for (const id of ["stuPlay", "stuTail", "stuSave", "stuA", "stuB", "stuName", "stuFromNow", "stuToNow"]) $s(id).disabled = !ok;
@@ -449,7 +452,7 @@ import { saveShared, share, shareSetup, sharedAll, sharing } from "./studioshare
       if (isStudio(id)) {
         const it = byId(id);
         if (!it) return false;
-        m.item(ICO.share, sharing.has(id) ? "Готовлю ссылку…" : "Поделиться через архив", () => share(it));
+        m.item(ICO.share, sharing.has(id) ? "Подготовка ссылки…" : "Поделиться через архив", () => share(it));
         m.item(ICO.edit, "Переименовать…", () => rename(it));
         m.item(ICO.file, "Сохранить файл…", () => exportFile(it));
         if (enabled && (it.origin || "cut") === "cut") m.item(ICO.cut, "Открыть исходник в студии", () => window.studioOpen({ ...raw, id: it.srcId, title: it.meta?.srcTitle || raw.title, durationMs: 0, studio: undefined }));

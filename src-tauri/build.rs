@@ -26,6 +26,7 @@ const COMMANDS: &[&str] = &[
     "engine_dj",
     "dlna_scan",
     "dlna_cast",
+    "dlna_next",
     "dlna_play",
     "dlna_pause",
     "dlna_seek",

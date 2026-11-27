@@ -7,7 +7,8 @@
 //!  - сервер работает, только пока идёт вывод на телевизор, слушает адрес интерфейса, через который виден
 //!    телевизор (не 0.0.0.0), и отвечает только адресу самого телевизора;
 //!  - адрес трека — /m/<случайный ключ 128 бит>.<расширение>, ключ новый для каждого трека;
-//!  - отдаётся только текущий трек из памяти — файлов с диска сервер не открывает;
+//!  - отдаётся только текущий трек (и следующий — для кнопки «Далее» на пульте) из памяти — файлов с диска сервер
+//!    не открывает;
 //!  - описание и адреса управления берутся только с частных адресов сети (10/8, 172.16/12, 192.168/16,
 //!    169.254/16) и только с того адреса, который ответил на поиск: чужой ответ не направит запросы вовне;
 //!  - команды берут телевизор по номеру из последнего поиска, адреса со страницы не принимаются.
@@ -151,20 +152,44 @@ pub fn soap_body(stype: &str, action: &str, args: &[(&str, String)]) -> String {
     )
 }
 
-/// Описание трека для телевизора (DIDL-Lite): название, исполнитель, обложка, длительность.
-pub fn didl(url: &str, mime: &str, title: &str, artist: &str, cover: Option<&str>, dur: f64) -> String {
-    let art = cover.map(|c| format!("<upnp:albumArtURI>{}</upnp:albumArtURI>", escape(c))).unwrap_or_default();
-    let d = if dur > 0.0 { format!(" duration=\"{}.000\"", hms(dur)) } else { String::new() };
+/// Что показать на телевизоре.
+#[derive(Clone, Default, Debug)]
+pub struct Meta {
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub dur: f64,
+}
+
+/// Описание трека для телевизора (DIDL-Lite): название, исполнитель, альбом, обложка, длительность.
+/// id элемента — свой у каждого трека (ключ): с одинаковым id часть телевизоров не обновляет экран, и на нём
+/// через раз оставалось прошлое название. Обложка — с нашего сервера по http (https Яндекса многие не открывают),
+/// с пометкой DLNA JPEG_TN — без неё часть телевизоров картинку не берёт.
+pub fn didl(id: &str, url: &str, mime: &str, m: &Meta, cover: Option<&str>) -> String {
+    let art = cover
+        .map(|c| format!("<upnp:albumArtURI dlna:profileID=\"JPEG_TN\">{}</upnp:albumArtURI>", escape(c)))
+        .unwrap_or_default();
+    let album = if m.album.is_empty() { String::new() } else { format!("<upnp:album>{}</upnp:album>", escape(&m.album)) };
+    let d = if m.dur > 0.0 { format!(" duration=\"{}.000\"", hms(m.dur)) } else { String::new() };
     format!(
         "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" \
-xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\"><item id=\"whisper\" parentID=\"0\" restricted=\"1\">\
-<dc:title>{}</dc:title><dc:creator>{a}</dc:creator><upnp:artist>{a}</upnp:artist>{art}\
+xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">\
+<item id=\"{id}\" parentID=\"0\" restricted=\"1\">\
+<dc:title>{}</dc:title><dc:creator>{a}</dc:creator><upnp:artist role=\"Performer\">{a}</upnp:artist>{album}{art}\
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>\
 <res protocolInfo=\"http-get:*:{mime}:{FEATURES}\"{d}>{}</res></item></DIDL-Lite>",
-        escape(title),
+        escape(&m.title),
         escape(url),
-        a = escape(artist),
+        id = escape(id),
+        a = escape(&m.artist),
     )
+}
+
+/// Ключ трека из адреса, который телевизор сейчас играет (GetPositionInfo → TrackURI): …/m/<ключ>.<расш>
+pub fn token_of(uri: &str) -> Option<String> {
+    let rest = uri.split("/m/").nth(1)?;
+    let t = rest.split('.').next()?;
+    (t.len() == 32 && t.bytes().all(|c| c.is_ascii_hexdigit())).then(|| t.to_string())
 }
 /// DLNA: перемотка по байтам (OP=01), поток, фоновая загрузка — так телевизоры охотнее перематывают.
 const FEATURES: &str = "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000";
@@ -398,7 +423,8 @@ pub struct Server {
     pub port: u16,
     pub ip: Ipv4Addr,
     pub tv: Ipv4Addr,
-    pub media: Arc<Mutex<Option<Media>>>,
+    /// текущий трек и следующий (для «Далее» на пульте) — не больше двух
+    pub media: Arc<Mutex<Vec<Media>>>,
     stop: Arc<AtomicBool>,
 }
 
@@ -407,7 +433,7 @@ impl Server {
         let l = TcpListener::bind((ip, 0)).map_err(|e| format!("не удалось открыть порт для телевизора ({e})"))?;
         l.set_nonblocking(true).map_err(|e| e.to_string())?;
         let port = l.local_addr().map_err(|e| e.to_string())?.port();
-        let media: Arc<Mutex<Option<Media>>> = Arc::new(Mutex::new(None));
+        let media: Arc<Mutex<Vec<Media>>> = Arc::new(Mutex::new(Vec::new()));
         let stop = Arc::new(AtomicBool::new(false));
         let (m2, s2) = (media.clone(), stop.clone());
         std::thread::Builder::new()
@@ -438,7 +464,7 @@ impl Drop for Server {
     }
 }
 
-fn serve(mut c: TcpStream, media: &Mutex<Option<Media>>, stop: &AtomicBool) {
+fn serve(mut c: TcpStream, media: &Mutex<Vec<Media>>, stop: &AtomicBool) {
     c.set_nonblocking(false).ok();
     c.set_read_timeout(Some(Duration::from_secs(10))).ok();
     c.set_write_timeout(Some(Duration::from_secs(30))).ok();
@@ -470,14 +496,14 @@ fn serve(mut c: TcpStream, media: &Mutex<Option<Media>>, stop: &AtomicBool) {
         };
         let close = hdr("connection").is_some_and(|v| v.eq_ignore_ascii_case("close"));
         let got = {
-            let m = media.lock().unwrap_or_else(|e| e.into_inner());
-            m.as_ref().and_then(|m| {
+            let list = media.lock().unwrap_or_else(|e| e.into_inner());
+            list.iter().find_map(|m| {
                 // /m/<ключ>.<расш> — трек, /c/<ключ>.jpg — обложка
                 let tok = |p: &str| path.strip_prefix(p).and_then(|r| r.split('.').next()).is_some_and(|t| t == m.token);
                 if tok("/m/") {
                     Some((m.body.clone(), m.mime))
                 } else if tok("/c/") {
-                    m.art.as_ref().map(|a| (Body::full(a.to_vec()), "image/jpeg"))
+                    m.art.as_ref().map(|a| (Body::full(a.to_vec()), if a.starts_with(b"\x89PNG") { "image/png" } else { "image/jpeg" }))
                 } else {
                     None
                 }
@@ -544,12 +570,18 @@ pub struct Status {
     dur: f64,
     /// громкость телевизора 0…1 (-1 — не знаем)
     volume: f64,
+    /// ключ трека, который телевизор играет сейчас (по TrackURI): сам перешёл на следующий — ключ следующего
+    track: String,
 }
 
 struct Cast {
     id: String,
     dev: Renderer,
     server: Server,
+    /// ключ текущего трека
+    cur: String,
+    /// следующий трек, уже переданный телевизору (SetNextAVTransportURI): (номер трека, ключ)
+    next: Option<(String, String)>,
 }
 
 #[derive(Default)]
@@ -610,35 +642,14 @@ pub async fn dlna_scan() -> Result<Vec<Found>, String> {
     .await
 }
 
-/// Включить трек на телевизоре. kind/id — как у engine_load ("ym" | "local" | "wa"); cover — только https-обложка
-/// Яндекса (телевизор берёт её сам); start — с какого места.
-#[tauri::command]
-#[allow(clippy::too_many_arguments)]
-pub async fn dlna_cast(
-    app: AppHandle,
-    device: String,
-    kind: String,
-    id: String,
-    quality: Option<String>,
-    title: String,
-    artist: String,
-    cover: Option<String>,
-    art: Option<Vec<u8>>,
-    dur: f64,
-    start: f64,
-) -> Result<(), String> {
-    // Треки переключают быстрее, чем скачивается файл: прошлый запрос мог докачаться позже нового и поставить
-    // телевизору свой трек и своё название поверх. Каждый запрос получает номер; телевизору отдаёт трек только
-    // последний, и по одному за раз (CAST_LOCK).
-    let my = CAST_GEN.fetch_add(1, SeqCst) + 1;
-    let stale = || Err::<(), String>("устарело: включён другой трек".into());
-    let dev = st().found.get(&device).cloned().ok_or("телевизор не найден — поищи ещё раз")?;
-    let body: Arc<Body> = match kind.as_str() {
+/// Файл трека для телевизора: трек Яндекса качается в фоне (телевизор начинает с первых кусков), скачанный и из
+/// архива — целиком.
+async fn open_body(app: &AppHandle, kind: &str, id: &str, quality: Option<&str>) -> Result<Arc<Body>, String> {
+    Ok(match kind {
         "ym" => {
-            let url = crate::net::track_url_q(&id, quality.as_deref() == Some("low")).await?;
+            let url = crate::net::track_url_q(id, quality == Some("low")).await?;
             let mut resp = crate::net::open_media(&url).await?;
             match resp.content_length().filter(|&n| n > 0 && n <= 120 << 20) {
-                // качается в фоне — телевизор начинает играть с первых кусков
                 Some(n) => {
                     let b = Body::loading(n as usize);
                     let bg = b.clone();
@@ -667,22 +678,77 @@ pub async fn dlna_cast(
             }
         }
         "local" => {
-            let (mut f, _, _) = crate::download::open_local(&app, &id).ok_or("LOCAL: скачанный файл не найден")?;
+            let (mut f, _, _) = crate::download::open_local(app, id).ok_or("LOCAL: скачанный файл не найден")?;
             let mut v = Vec::new();
             f.read_to_end(&mut v).map_err(|e| e.to_string())?;
             Body::full(v)
         }
-        "wa" => Body::full(crate::whisper::wa_track_bytes(&id).await?),
+        "wa" => Body::full(crate::whisper::wa_track_bytes(id).await?),
         _ => return Err("неизвестный источник".into()),
-    };
-    let tok = token()?;
+    })
+}
+
+/// Обложка для телевизора — картинкой с нашего сервера (/c/<ключ>.jpg): обложку Яндекса (только avatars.yandex.net)
+/// скачиваем сами — https с Яндекса многие телевизоры не открывают; своя (заглушка приложения) — как прислала
+/// страница. Только JPEG/PNG и не больше 512 КБ.
+async fn cover_bytes(cover: Option<String>, art: Option<Vec<u8>>) -> Option<Arc<Vec<u8>>> {
+    let ok = |a: &Vec<u8>| a.len() <= 512 * 1024 && (a.starts_with(&[0xFF, 0xD8]) || a.starts_with(b"\x89PNG"));
     let cover = cover.filter(|c| {
         c.len() < 600 && (c.starts_with("https://avatars.yandex.net/") || c.starts_with("https://avatars.mds.yandex.net/"))
     });
-    // своя обложка (заглушка приложения для своих треков и т. п.): только JPEG/PNG и не больше 512 КБ
-    let art = art.filter(|a| a.len() <= 512 * 1024 && (a.starts_with(&[0xFF, 0xD8]) || a.starts_with(b"\x89PNG"))).map(Arc::new);
-    let title: String = title.chars().take(200).collect();
-    let artist: String = artist.chars().take(200).collect();
+    if let Some(c) = cover {
+        if let Ok(b) = crate::net::fetch_media(&c).await {
+            if ok(&b) {
+                return Some(Arc::new(b));
+            }
+        }
+    }
+    art.filter(ok).map(Arc::new)
+}
+
+fn meta_of(title: String, artist: String, album: Option<String>, dur: f64) -> Meta {
+    let cut = |s: String| s.chars().filter(|c| !c.is_control()).take(200).collect::<String>();
+    Meta { title: cut(title), artist: cut(artist), album: cut(album.unwrap_or_default()), dur: if dur.is_finite() { dur.max(0.0) } else { 0.0 } }
+}
+
+/// Включить трек на телевизоре. kind/id — как у engine_load ("ym" | "local" | "wa"); key — номер трека в очереди
+/// (у трека Яндекса — его номер): по нему узнаём следующий, который телевизор уже играет сам (кнопка «Далее» на
+/// пульте или конец трека). cover — https-обложка Яндекса, art — своя картинка; start — с какого места.
+/// Ответ — ключ трека (по нему страница видит, что телевизор перешёл дальше).
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn dlna_cast(
+    app: AppHandle,
+    device: String,
+    kind: String,
+    id: String,
+    key: Option<String>,
+    quality: Option<String>,
+    title: String,
+    artist: String,
+    album: Option<String>,
+    cover: Option<String>,
+    art: Option<Vec<u8>>,
+    dur: f64,
+    start: f64,
+) -> Result<String, String> {
+    // Треки переключают быстрее, чем скачивается файл: прошлый запрос мог докачаться позже нового и поставить
+    // телевизору свой трек и своё название поверх. Каждый запрос получает номер; телевизору отдаёт трек только
+    // последний, и по одному за раз (CAST_LOCK).
+    let my = CAST_GEN.fetch_add(1, SeqCst) + 1;
+    let stale = || Err::<String, String>("устарело: включён другой трек".into());
+    let dev = st().found.get(&device).cloned().ok_or("телевизор не найден — поищи ещё раз")?;
+    let key = key.unwrap_or_else(|| format!("{kind}:{id}"));
+    // телевизор уже сам играет этот трек как следующий (переданный заранее) — ничего не трогаем, только запоминаем
+    if start <= 1.0 {
+        if let Some(tok) = adopt(&device, &key).await {
+            return Ok(tok);
+        }
+    }
+    let body = open_body(&app, &kind, &id, quality.as_deref()).await?;
+    let tok = token()?;
+    let art = cover_bytes(cover, art).await;
+    let meta = meta_of(title, artist, album, dur);
     if CAST_GEN.load(SeqCst) != my {
         body.cancel.store(true, SeqCst);
         return stale();
@@ -701,32 +767,38 @@ pub async fn dlna_cast(
         let (mime, ext) = sniff(&head);
         // прошлый трек на этом телевизоре ещё стоит — сначала Stop: без него часть телевизоров (Samsung, LG) берёт
         // новый трек, но на экране оставляет прошлые название и обложку
-        let switching = st().cast.as_ref().is_some_and(|c| c.id == device && c.server.media.lock().unwrap_or_else(|e| e.into_inner()).is_some());
+        let switching = st()
+            .cast
+            .as_ref()
+            .is_some_and(|c| c.id == device && !c.server.media.lock().unwrap_or_else(|e| e.into_inner()).is_empty());
         if switching {
             let _ = soap(&dev.avt, "Stop", &[("InstanceID", "0".into())]);
         }
         // сервер — один на телевизор: тот же телевизор — тот же порт, другой — новый
-        let url = {
+        let (url, cover) = {
             let mut s = st();
             if s.cast.as_ref().is_none_or(|c| c.id != device) {
                 s.cast = None;
                 let ip = local_ip_for(dev.ip).ok_or("нет сети до телевизора")?;
                 let server = Server::start(ip, dev.ip)?;
-                s.cast = Some(Cast { id: device.clone(), dev: dev.clone(), server });
+                s.cast = Some(Cast { id: device.clone(), dev: dev.clone(), server, cur: String::new(), next: None });
             }
-            let c = s.cast.as_ref().expect("cast");
+            let c = s.cast.as_mut().expect("cast");
             let has_art = art.is_some();
-            let old = c.server.media.lock().unwrap_or_else(|e| e.into_inner()).replace(Media { token: tok.clone(), body, mime, art });
-            if let Some(o) = old {
-                o.body.cancel.store(true, SeqCst);       // прошлый трек больше не докачиваем
+            {
+                // прошлый и заготовленный следующий больше не нужны — не докачиваем
+                let mut list = c.server.media.lock().unwrap_or_else(|e| e.into_inner());
+                for o in list.drain(..) {
+                    o.body.cancel.store(true, SeqCst);
+                }
+                list.push(Media { token: tok.clone(), body, mime, art });
             }
+            c.cur = tok.clone();
+            c.next = None;
             let base = format!("http://{}:{}", c.server.ip, c.server.port);
-            // обложка с Яндекса — телевизор берёт её сам; иначе — свою картинку (заглушку) отдаём мы
-            let cover = cover.or_else(|| has_art.then(|| format!("{base}/c/{tok}.jpg")));
-            (format!("{base}/m/{tok}.{ext}"), cover)
+            (format!("{base}/m/{tok}.{ext}"), has_art.then(|| format!("{base}/c/{tok}.jpg")))
         };
-        let (url, cover) = url;
-        let meta = didl(&url, mime, &title, &artist, cover.as_deref(), dur);
+        let meta = didl(&tok, &url, mime, &meta, cover.as_deref());
         let set = |d: &Renderer| soap(&d.avt, "SetAVTransportURI", &[("InstanceID", "0".into()), ("CurrentURI", url.clone()), ("CurrentURIMetaData", meta.clone())]);
         if set(&dev).is_err() {
             // часть телевизоров не берёт новый трек, пока играет старый
@@ -746,7 +818,116 @@ pub async fn dlna_cast(
             }
             let _ = soap(&dev.avt, "Seek", &[("InstanceID", "0".into()), ("Unit", "REL_TIME".into()), ("Target", hms(start))]);
         }
-        Ok(())
+        Ok(tok)
+    })
+    .await
+}
+
+/// Телевизор уже играет заранее переданный следующий трек с этим номером? Тогда он становится текущим —
+/// без Stop и новой загрузки (иначе трек начался бы заново). Ответ — его ключ.
+async fn adopt(device: &str, key: &str) -> Option<String> {
+    let (dev, tok) = {
+        let s = st();
+        let c = s.cast.as_ref().filter(|c| c.id == device)?;
+        let (k, t) = c.next.as_ref()?;
+        if k != key {
+            return None;
+        }
+        (c.dev.clone(), t.clone())
+    };
+    let playing = blocking(move || {
+        let p = soap(&dev.avt, "GetPositionInfo", &[("InstanceID", "0".into())])?;
+        Ok(tag(&p, "TrackURI").and_then(|u| token_of(&u)))
+    })
+    .await
+    .ok()
+    .flatten()?;
+    if playing != tok {
+        return None;
+    }
+    let mut s = st();
+    let c = s.cast.as_mut().filter(|c| c.id == device)?;
+    {
+        let mut list = c.server.media.lock().unwrap_or_else(|e| e.into_inner());
+        for o in list.iter().filter(|m| m.token != tok) {
+            o.body.cancel.store(true, SeqCst);
+        }
+        list.retain(|m| m.token == tok);
+    }
+    c.cur = tok.clone();
+    c.next = None;
+    Some(tok)
+}
+
+/// Следующий трек — телевизору заранее (SetNextAVTransportURI): кнопка «Далее» на пульте и переход без паузы.
+/// after — ключ текущего трека (если телевизору уже включили другой, следующий не нужен). Не все телевизоры это
+/// умеют — тогда ошибка, и всё работает как раньше: следующий включает приложение, когда этот доиграет.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn dlna_next(
+    app: AppHandle,
+    after: String,
+    kind: String,
+    id: String,
+    key: String,
+    quality: Option<String>,
+    title: String,
+    artist: String,
+    album: Option<String>,
+    cover: Option<String>,
+    art: Option<Vec<u8>>,
+    dur: f64,
+) -> Result<String, String> {
+    let same = move |s: &State| s.cast.as_ref().is_some_and(|c| c.cur == after);
+    {
+        let s = st();
+        if !same(&s) {
+            return Err("устарело".into());
+        }
+        // этот же следующий уже передан
+        if let Some((k, t)) = s.cast.as_ref().and_then(|c| c.next.as_ref()) {
+            if *k == key {
+                return Ok(t.clone());
+            }
+        }
+    }
+    let body = open_body(&app, &kind, &id, quality.as_deref()).await?;
+    let art = cover_bytes(cover, art).await;
+    let meta = meta_of(title, artist, album, dur);
+    let tok = token()?;
+    blocking(move || {
+        let _one = CAST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let same = same;
+        let Some(head) = body.read_at(0, 16, Duration::from_secs(20)) else {
+            body.cancel.store(true, SeqCst);
+            return Err("следующий трек не скачался".into());
+        };
+        let (mime, ext) = sniff(&head);
+        let (dev, url, cover) = {
+            let mut s = st();
+            if !same(&s) {
+                body.cancel.store(true, SeqCst);
+                return Err("устарело".into());
+            }
+            let c = s.cast.as_mut().expect("cast");
+            let has_art = art.is_some();
+            {
+                // прошлый заготовленный следующий (очередь поменялась) больше не нужен
+                let mut list = c.server.media.lock().unwrap_or_else(|e| e.into_inner());
+                let cur = c.cur.clone();
+                for o in list.iter().filter(|m| m.token != cur) {
+                    o.body.cancel.store(true, SeqCst);
+                }
+                list.retain(|m| m.token == cur);
+                list.push(Media { token: tok.clone(), body, mime, art });
+            }
+            c.next = Some((key, tok.clone()));
+            let base = format!("http://{}:{}", c.server.ip, c.server.port);
+            (c.dev.clone(), format!("{base}/m/{tok}.{ext}"), has_art.then(|| format!("{base}/c/{tok}.jpg")))
+        };
+        let meta = didl(&tok, &url, mime, &meta, cover.as_deref());
+        soap(&dev.avt, "SetNextAVTransportURI", &[("InstanceID", "0".into()), ("NextURI", url), ("NextURIMetaData", meta)])?;
+        Ok(tok)
     })
     .await
 }
@@ -802,6 +983,7 @@ pub async fn dlna_status() -> Result<Status, String> {
             pos: tag(&p, "RelTime").map(|s| secs(&s)).unwrap_or(0.0),
             dur: tag(&p, "TrackDuration").map(|s| secs(&s)).unwrap_or(0.0),
             volume,
+            track: tag(&p, "TrackURI").and_then(|u| token_of(&u)).unwrap_or_default(),
         })
     })
     .await
@@ -813,8 +995,8 @@ pub async fn dlna_stop() -> Result<(), String> {
     let c = st().cast.take();
     if let Some(c) = c {
         let d = c.dev.clone();
-        if let Some(m) = c.server.media.lock().unwrap_or_else(|e| e.into_inner()).take() {
-            m.body.cancel.store(true, SeqCst);       // трек больше не докачиваем
+        for m in c.server.media.lock().unwrap_or_else(|e| e.into_inner()).drain(..) {
+            m.body.cancel.store(true, SeqCst);       // треки больше не докачиваем
         }
         drop(c); // сервер закрывается
         let _ = blocking(move || soap(&d.avt, "Stop", &[("InstanceID", "0".into())]).map(|_| ())).await;
@@ -874,8 +1056,12 @@ mod tests {
     }
     #[test]
     fn meta_escaped() {
-        let d = didl("http://192.168.1.2:5000/m/ab.mp3", "audio/mpeg", "Rock & <Roll>", "A\"B", None, 192.0);
+        let m = Meta { title: "Rock & <Roll>".into(), artist: "A\"B".into(), album: "Альбом".into(), dur: 192.0 };
+        let d = didl("k1", "http://192.168.1.2:5000/m/ab.mp3", "audio/mpeg", &m, Some("http://192.168.1.2:5000/c/ab.jpg"));
         assert!(d.contains("Rock &amp; &lt;Roll&gt;") && d.contains("duration=\"0:03:12.000\""));
+        assert!(d.contains("<item id=\"k1\"") && d.contains("<upnp:album>Альбом</upnp:album>") && d.contains("dlna:profileID=\"JPEG_TN\""));
+        assert_eq!(token_of("http://192.168.1.2:5000/m/0123456789abcdef0123456789abcdef.mp3").as_deref(), Some("0123456789abcdef0123456789abcdef"));
+        assert!(token_of("http://x/m/../etc").is_none());
         let b = soap_body("urn:x:service:AVTransport:1", "SetAVTransportURI", &[("CurrentURIMetaData", d)]);
         assert!(b.contains("&lt;DIDL-Lite") && !b.contains("<DIDL-Lite"));
     }
@@ -884,7 +1070,7 @@ mod tests {
         let lo = Ipv4Addr::LOCALHOST;
         let srv = Server::start(lo, lo).unwrap();
         *srv.media.lock().unwrap() =
-            Some(Media { token: "abc".into(), body: Body::full((0..100u8).collect()), mime: "audio/mpeg", art: Some(Arc::new(vec![0xFF, 0xD8, 1])) });
+            vec![Media { token: "abc".into(), body: Body::full((0..100u8).collect()), mime: "audio/mpeg", art: Some(Arc::new(vec![0xFF, 0xD8, 1])) }];
         let get = |path: &str, extra: &str| {
             let mut c = TcpStream::connect((lo, srv.port)).unwrap();
             c.write_all(format!("GET {path} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n{extra}\r\n").as_bytes()).unwrap();

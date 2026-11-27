@@ -134,7 +134,7 @@ import { applyCfg, BUILTIN, saveCfg, syncControls } from "./config.js";
     const mine = s === "conflict" ? cfg.themes.find((x) => x.id === t.id) : null;
     b.title = {
       new: "Скачать тему и сразу включить", update: "В библиотеке новая версия темы", installed: "Тема уже установлена — включить её", active: "Эта тема сейчас включена",
-      conflict: `У тебя установлен другой стиль с таким же id — «${mine?.name || t.id}»${mine?.author ? ` (${mine.author})` : ""}. Установка заменит его — перед этим спросим`,
+      conflict: `У тебя установлен другой стиль с таким же id — «${mine?.name || t.id}»${mine?.author ? ` (${mine.author})` : ""}. Перед заменой появится вопрос`,
     }[s];
   }
 

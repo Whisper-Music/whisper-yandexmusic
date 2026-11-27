@@ -44,7 +44,7 @@ pub fn cut(src: &Path, parts: &[Part]) -> Result<Vec<u64>, String> {
     let cp = &track.codec_params;
     let sr = cp.sample_rate.ok_or("неизвестная частота")?;
     if !(8000..=96000).contains(&sr) {
-        return Err("необычная частота звука — такой файл не режем".into());
+        return Err("необычная частота звука — такой файл не нарезается".into());
     }
     let ch = cp.channels.map(|c| c.count()).unwrap_or(2).clamp(1, 8) as u16;
     let asc = cp.extra_data.clone().filter(|a| !a.is_empty() && a.len() <= 64).ok_or("нет описания звука (AudioSpecificConfig)")?;

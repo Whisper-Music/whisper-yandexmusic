@@ -7,6 +7,11 @@
 /* у части стилей поле с отступом под значок лупы (Стимпанк — 38 px), поэтому шире и с запасом: подсказка не обрезается */
 .settop .setfind { order: 2; flex: 0 1 270px; min-width: 210px; margin: 0; text-overflow: ellipsis; }
 #setFindEmpty[hidden] { display: none !important; }
+/* Карточки плотнее: меньше полей и промежутков, а пустая строка состояния (её текст появляется не всегда) места
+   не занимает — раньше короткие карточки вроде «Браузерной версии» были наполовину пустыми */
+.settings > .card { padding: 14px 16px; gap: 10px; }
+.settings > .card :is(p.status, .dcnote, .setnote):empty { display: none; }
+.settings > .card > .row { margin: 0; }
 /* «Вывод и качество»: две строки выбора — плотнее обычной карточки; пустая подсказка режима места не занимает */
 #modeCard { gap: 8px; }
 #modeCard > .status:empty { display: none; }

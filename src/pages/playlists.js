@@ -11,6 +11,7 @@ import { goTop, navigate, renderTabs, resetView, setActive, setHead } from "../a
 import { suspectOffline } from "../app/offline.js";
 import { pinKey, savePins } from "../app/pins.js";
 import { IDB } from "../look/bg.js";
+import { plLocalAdd, plLocalForget, plLocalMerge, plLocalRemove } from "../library/pllocal.js";
 import { offlineNote, showLikes } from "./likes.js";
 import { fmtHours } from "./stats.js";
 import { play } from "../player/core.js";
@@ -176,6 +177,16 @@ async function plMoveTrack(kind, from, to, t) {
   }
 }
 
+// свой трек убрать из плейлиста: только запись о месте — файл остаётся в «Моих версиях» студии
+function plLocalDrop(kind, id, t) {
+  kind = String(kind);
+  const at = plLocalMerge(kind, PL.full.get(kind)?.list || []).list.findIndex((x) => String(x.id) === String(id));
+  plLocalRemove(kind, id);
+  if (curPl === kind) plRenderTracks();
+  showToast(`«${t.title}» убран из «${plName(kind)}». Файл остался в «Моих версиях»`, 6000,
+    { kind: "ok", action: { label: "Вернуть", fn: () => { plLocalAdd(kind, [String(id)], Math.max(0, at)); if (curPl === kind) plRenderTracks(); } } });
+}
+
 async function plCreate(title, isPublic) {
   const r = await ym("playlist_create", { form: { title, visibility: isPublic ? "public" : "private" } });
   if (!r || !kindOk(r.kind)) throw new Error("сервер вернул неожиданный ответ");
@@ -215,6 +226,7 @@ async function plDelete(kind) {
   try {
     await ym("playlist_delete", { id: kind });
     PL.full.delete(kind);
+    plLocalForget(kind);
     if (PL.list) PL.list = PL.list.filter((p) => String(p.kind) !== kind);
     const pi = pins.findIndex((p) => p.type === "playlist" && String(p.id) === kind);
     if (pi >= 0) { pins.splice(pi, 1); savePins(); }
@@ -358,18 +370,19 @@ async function showPlaylist(kind) {
 function showPlaylistOffline(kind) {
   const p = PL.full.get(kind);
   setHead({ title: p?.title || "Плейлист", back: true });
-  const list = (p?.list || []).filter((t) => t && got.has(String(t.id)));
+  const list = plLocalMerge(kind, p?.list || []).list.filter((t) => t && (got.has(String(t.id)) || /^studio-/.test(String(t.id))));
   if (list.length) renderList(list);
   offlineNote(list.length ? `Офлайн-режим — скачанные треки плейлиста: ${list.length}` : "Офлайн-режим — плейлист откроется, когда вернётся связь");
 }
 function plRenderHead(p) {
   const local = PL.covers.get(p.kind);
+  const all = plLocalMerge(p.kind, p.list).list;
   setHead({
     title: p.title, img: local || plYandexCover(p), round: false, back: true,
     pin: { type: "playlist", id: p.kind, title: p.title },
     sub: (el) => {
-      const ms = p.list.reduce((s, t) => s + (Number.isFinite(t.durationMs) ? t.durationMs : 0), 0);
-      el.textContent = [plCount(p.items.length), ms ? fmtHours(ms) : "", p.visibility === "private" ? "личный" : "публичный"].filter(Boolean).join(" · ");
+      const ms = all.reduce((s, t) => s + (Number.isFinite(t.durationMs) ? t.durationMs : 0), 0);
+      el.textContent = [plCount(all.length), ms ? fmtHours(ms) : "", p.visibility === "private" ? "личный" : "публичный"].filter(Boolean).join(" · ");
     },
   });
   if (local === undefined) plLocalCover(p.kind).then((u) => { if (u && curPl === p.kind) { $("#headImg").src = u; $("#headImg").hidden = false; } });
@@ -379,19 +392,27 @@ function plRenderTracks() {
   if (!p) return;
   plRenderHead(p);
   const kind = p.kind;
-  renderList(p.list, false, { ctx: "playlist", menuCtx: (i) => ({ kind, index: i }), grip: (li, i) => plGrip(li, i) });
-  $("#status").textContent = p.list.length ? "" : "В плейлисте пока нет треков. Добавь их из рекомендаций ниже или у любого трека: «⋯» → «Добавить в плейлист».";
-  $("#plPlay").disabled = !p.list.length;
+  // свои треки (library/pllocal.js) — между треками Яндекса; у них в меню и перетаскивании свой номер: yIdx = -1
+  const { list, yIdx } = plLocalMerge(kind, p.list);
+  plMap = yIdx;
+  renderList(list, false, {
+    ctx: "playlist",
+    menuCtx: (i) => (yIdx[i] >= 0 ? { kind, index: yIdx[i] } : { kind, local: String(list[i].id) }),
+    grip: (li, i) => (yIdx[i] >= 0 ? plGrip(li, i) : plGripOff()),
+  });
+  $("#status").textContent = list.length ? "" : "В плейлисте пока нет треков. Добавь их из рекомендаций ниже или у любого трека: «⋯» → «Добавить в плейлист».";
+  $("#plPlay").disabled = !list.length;
   if (recArr.length) { const have = new Set(p.items.map((x) => x.id)); plShowRecs(recArr.filter((t) => !have.has(String(t.id)))); }
 }
 function flashRow(i) {
-  const li = $("#list").children[i];
+  const d = plMap ? plMap.indexOf(i) : i;      // номер в Яндексе → строка страницы (свои треки между ними)
+  const li = $("#list").children[d < 0 ? i : d];
   if (!li) return;
   li.scrollIntoView({ block: "nearest", behavior: document.documentElement.dataset.anim === "off" ? "auto" : "smooth" });
   li.classList.remove("flash"); void li.offsetWidth; li.classList.add("flash");
 }
 $("#plCreateBtn").onclick = () => plCreateDialog();
-$("#plPlay").onclick = () => { const p = PL.full.get(curPl); if (p?.list.length) { wave.on = false; queue = shown; playCtx = "playlist"; playAlbum = null; play(shuffle ? Math.floor(Math.random() * shown.length) : 0); } };
+$("#plPlay").onclick = () => { if (curPl && shown.length) { wave.on = false; queue = shown; playCtx = "playlist"; playAlbum = null; play(shuffle ? Math.floor(Math.random() * shown.length) : 0); } };
 $("#plRename").onclick = () => curPl && plRename(curPl);
 $("#plCoverBtn").onclick = (e) => curPl && plCoverMenu(e.currentTarget);
 $("#plDelete").onclick = () => curPl && plDelete(curPl);
@@ -425,6 +446,16 @@ function plShowRecs(tracks) {
 }
 $("#plRecsMore").onclick = () => curPl && plLoadRecs(curPl, nav);
 
+// номера строк страницы → номера в плейлисте Яндекса (свои треки — -1); ставит plRenderTracks
+let plMap = null;
+// studio.js дочитал свои треки с диска — открытый плейлист перерисовать, чтобы они появились
+window.plLocalRefresh = () => { if (curPl && PL.full.get(curPl) && !$("#plBar").hidden) plRenderTracks(); };
+// свой трек Яндекс не переставит: вместо ручки — пустое место той же ширины
+function plGripOff() {
+  const g = document.createElement("span");
+  g.className = "grip off"; g.title = "Свой трек: лежит на этом компьютере, порядок Яндекса его не касается";
+  return g;
+}
 function plGrip(li, from) {
   const g = document.createElement("span");
   g.className = "grip"; g.title = "Перетащи, чтобы изменить порядок"; g.innerHTML = ICON.grip;
@@ -467,7 +498,10 @@ function plDragStart(e, li, from) {
     rows.forEach((r) => r.classList.remove("drop-before", "drop-after"));
     li.classList.remove("dragging"); document.body.classList.remove("pl-drag");
     const to = slot > from ? slot - 1 : slot;
-    if (apply && to !== from && curPl) plMoveTrack(curPl, from, to, shown[from]);
+    // строки страницы → места в плейлисте Яндекса: свои треки между ними не считаются
+    const yFrom = plMap ? plMap[from] : from;
+    const yTo = plMap ? plMap.slice(0, slot).filter((v, k) => v >= 0 && k !== from).length : to;
+    if (apply && to !== from && curPl && yFrom >= 0 && yTo !== yFrom) plMoveTrack(curPl, yFrom, yTo, shown[from]);
   };
   const up = () => finish(true), cancel = () => finish(false);
   const key = (ev) => { if (ev.key === "Escape") { ev.stopPropagation(); finish(false); } };
@@ -477,5 +511,5 @@ function plDragStart(e, li, from) {
   document.addEventListener("keydown", key, true);
 }
 
-export { plAddTrack, plRemoveTrack, plMoveTrack, plCreateDialog, plLoadList, plFetch, plErr, plCount, plCoverEl, plCoverFromTrack,
+export { plAddTrack, plRemoveTrack, plMoveTrack, plLocalDrop, plCreate, plCreateDialog, plLoadList, plFetch, plErr, plCount, plCoverEl, plCoverFromTrack,
   plLocalCover, plYandexCover, showMyPlaylists, showPlaylist };

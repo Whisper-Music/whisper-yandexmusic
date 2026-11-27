@@ -238,9 +238,37 @@ pub fn gpu_raster(app: tauri::AppHandle, on: bool, restart: Option<bool>) -> boo
     let later = on && CPU_RASTER.load(std::sync::atomic::Ordering::Relaxed);
     if later && restart == Some(true) {
         crate::winstate::save(&app);
-        app.restart();
+        // Новый процесс наследует окружение этого — и с ним WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, где ещё стоит
+        // --disable-gpu-rasterization. webview_args() чужое значение не трогает (оно бывает для отладки), поэтому
+        // раньше после перезапуска параллакс так и оставался рывками. Переменную, которую поставили мы, — убираем.
+        if CPU_RASTER.load(std::sync::atomic::Ordering::Relaxed) {
+            std::env::remove_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS");
+        }
+        relaunch(&app);
     }
     later
+}
+
+/// Перезапуск с паузой: процессы WebView2 прошлого запуска закрываются не мгновенно, а новый запуск с другими
+/// параметрами браузера, пока старый браузерный процесс жив, к нему же и подключился бы — со старыми параметрами.
+/// Поэтому новый экземпляр стартует через ~2 с после выхода этого (Windows: cmd с ping вместо sleep, без окна).
+fn relaunch(app: &tauri::AppHandle) {
+    #[cfg(windows)]
+    if let Ok(exe) = std::env::current_exe() {
+        use std::os::windows::process::CommandExt;
+        let mut c = std::process::Command::new("cmd");
+        c.raw_arg(format!("/D /C ping -n 3 127.0.0.1 >nul & start \"\" \"{}\"", exe.display()))
+            .env_remove("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        if c.spawn().is_ok() {
+            app.exit(0);
+            return;
+        }
+    }
+    app.restart();
 }
 
 /// Плагины только для компьютера. Single-instance должен быть первым плагином: повторный запуск (ярлык,

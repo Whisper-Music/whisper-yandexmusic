@@ -297,6 +297,7 @@ pub fn run() {
         engine::engine_dj,
         dlna::dlna_scan,
         dlna::dlna_cast,
+        dlna::dlna_next,
         dlna::dlna_play,
         dlna::dlna_pause,
         dlna::dlna_seek,

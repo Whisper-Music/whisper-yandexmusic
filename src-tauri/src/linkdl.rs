@@ -118,7 +118,7 @@ pub fn check_url(raw: &str) -> Result<(String, Source), String> {
         return Err("Подходят только обычные ссылки https://".into());
     }
     if !u.username().is_empty() || u.password().is_some() || u.port().is_some_and(|p| p != 443 && p != 80) {
-        return Err("В ссылке есть логин или порт — такие не берём".into());
+        return Err("В ссылке есть логин или порт — такие не принимаются".into());
     }
     let host = u.host_str().unwrap_or("").trim_end_matches('.').to_ascii_lowercase();
     let src = host_source(&host).ok_or("Поддерживаются ссылки на YouTube, SoundCloud и видео ВКонтакте")?;
@@ -294,7 +294,7 @@ pub async fn install_to(dir: &Path) -> Result<String, String> {
     let want = expected_sum(&String::from_utf8_lossy(&sums), name).ok_or("в списке контрольных сумм нет нужного файла")?;
     let bin = get_limited(&client, &format!("{RELEASE}{name}"), MAX_TOOL).await?;
     if sha256_hex(&bin) != want {
-        return Err("контрольная сумма yt-dlp не совпала — файл не тот, ставить не будем".into());
+        return Err("контрольная сумма yt-dlp не совпала — файл не тот, установка отменена".into());
     }
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let tmp = dir.join("yt-dlp.new");
@@ -495,11 +495,11 @@ fn explain(stderr: &str, long: bool) -> String {
     if e.contains("requested format is not available") || e.contains("no video formats") {
         pick("в этой ссылке нет отдельной звуковой дорожки m4a или mp3")
     } else if e.contains("does not pass filter") || e.contains("is_live") {
-        pick(if long { "это прямой эфир или запись длиннее 4 часов — такие не скачиваем" } else { "это прямой эфир или запись длиннее часа — такие не скачиваем" })
+        pick(if long { "это прямой эфир или запись длиннее 4 часов — такие не скачиваются" } else { "это прямой эфир или запись длиннее часа — такие не скачиваются" })
     } else if e.contains("max-filesize") || e.contains("larger than max") {
         pick(if long { "файл больше 400 МБ" } else { "файл больше 100 МБ" })
     } else if e.contains("private video") || e.contains("sign in") || e.contains("login") || e.contains("authentication") {
-        pick("видео закрыто или доступно только после входа — такие не скачиваем")
+        pick("видео закрыто или доступно только после входа — такие не скачиваются")
     } else if e.contains("unavailable") || e.contains("not available") || e.contains("404") {
         pick("трек или видео недоступно (удалено или закрыто в твоей стране)")
     } else if e.contains("unsupported url") {
@@ -641,7 +641,7 @@ pub(crate) fn run_mode(
     if !list {
         // в папке — ровно один обычный файл track.m4a / track.mp3, ничего больше
         let [file] = files.as_slice() else {
-            return Err("yt-dlp оставил не один файл — такое не берём".into());
+            return Err("yt-dlp оставил не один файл — такой результат не принимается".into());
         };
         if !matches!(name_of(file).as_str(), "track.m4a" | "track.mp3") {
             return Err("скачался не звуковой файл".into());
@@ -661,9 +661,9 @@ pub(crate) fn run_mode(
             let _ = std::fs::remove_file(f);
             continue;
         }
-        let Some((num, ext)) = n.split_once('.') else { return Err("yt-dlp оставил чужой файл — такое не берём".into()) };
+        let Some((num, ext)) = n.split_once('.') else { return Err("yt-dlp оставил чужой файл — такой результат не принимается".into()) };
         if num.len() != 3 || !num.bytes().all(|c| c.is_ascii_digit()) || !matches!(ext, "m4a" | "mp3") {
-            return Err("yt-dlp оставил чужой файл — такое не берём".into());
+            return Err("yt-dlp оставил чужой файл — такой результат не принимается".into());
         }
         let idx: u32 = num.parse().unwrap_or(0);
         let m = metas.iter().map(meta_of).find(|m| m.index == idx).unwrap_or(Meta { index: idx, ..Default::default() });
@@ -717,7 +717,7 @@ pub(crate) fn check_audio_max(path: &Path, max: u64) -> Result<&'static str, Str
     }
     let ext = if b.len() > 12 && &b[4..8] == b"ftyp" {
         if has_video_track(&b) || has_video_track(&tail) {
-            return Err("в файле есть видео — берём только звук".into());
+            return Err("в файле есть видео — нужен только звук".into());
         }
         "m4a"
     } else if b.starts_with(b"ID3") || (b[0] == 0xFF && (b[1] & 0xE0) == 0xE0) {

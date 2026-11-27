@@ -267,7 +267,7 @@ import { cliKit } from "./cli.js";
       if (!tok) continue;
       if (/^(-|\.|_|пауза)$/i.test(tok)) { shown.push("·"); t += beat; continue; }
       const nt = parseNote(tok, oct);
-      if (!nt) return err(`piano: не понял ноту «${tok}». Пример: c d e f# g a bb c5 или до ре ми.`);
+      if (!nt) return err(`piano: непонятная нота «${tok}». Пример: c d e f# g a bb c5 или до ре ми.`);
       oct = nt.oct;
       tone(440 * 2 ** ((nt.midi - 69) / 12), t, Math.max(0.25, beat * 1.6));
       shown.push(nt.label);
@@ -323,7 +323,7 @@ import { cliKit } from "./cli.js";
   egg("coffee tea кофе чай", "", "перерыв на чашку", () => {
     const S = ["   (  )   (\n    )  (   )\n   (  )  (", "    )  (   (\n   (  )   )\n    )  (  )", "   (   )  )\n    ) (  (\n   (   )  )"];
     const CUP = "\n  .---------.\n  |         |]\n  \\         /\n   `-------'";
-    ok("418: я чайник. Но чашку налью.");
+    ok("418: это чайник, а не кофеварка. Чашка налита.");
     liveStart(4, (n) => (n > 16 ? false : S[n % S.length] + CUP));
   });
 

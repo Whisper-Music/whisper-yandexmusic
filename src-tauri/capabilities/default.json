@@ -67,6 +67,7 @@
     "allow-engine-dj",
     "allow-dlna-scan",
     "allow-dlna-cast",
+    "allow-dlna-next",
     "allow-dlna-play",
     "allow-dlna-pause",
     "allow-dlna-seek",

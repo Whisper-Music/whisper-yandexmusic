@@ -64,7 +64,7 @@ import { togglePlay } from "../player/core.js";
   async function goBack() {
     if (busy || gone) return;
     busy = true; if (btn) btn.disabled = true; if (back) back.disabled = true;
-    say("Возвращаемся в приложение…");
+    say("Возврат в приложение…");
     try {
       await flush();
       pause();

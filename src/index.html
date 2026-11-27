@@ -153,6 +153,7 @@
   <!-- альбом по ссылке: длинное видео по главам/паузам, плейлист (linkset.rs) — зовёт linkadd.js -->
   <link rel="stylesheet" href="library/linkalbum.css" />
   <script type="module" src="library/linkalbum.js"></script>
+  <script type="module" src="library/pllocal.js"></script>
   <!-- синхронизация своих треков (студии) через Whisper Archive: /api/library, Rust — whisper/library.rs + studio.rs -->
   <script type="module" src="library/libsync.js"></script>
   <!-- Настройки → «Панели»: порядок и видимость кнопок боковой панели -->
@@ -564,10 +565,23 @@
           <h3>Переходы между треками <i class="hint" title="Чтобы знать, где тишина и как громко звучат края, трек целиком проверяется заранее. Для нескачанных треков это ещё одна загрузка в экономном качестве">i</i></h3>
           <label class="switch" title="Тишина в начале трека перематывается, а на тишине в конце сразу включается следующий"><input type="checkbox" id="xfSilence" /><i></i><span>Пропускать тишину</span></label>
           <label class="switch" title="Следующий трек начинается тихо — конец этого плавно затихает до его уровня. Начинается громко после тихого конца — входит мягко и за пару секунд набирает громкость"><input type="checkbox" id="xfSmooth" /><i></i><span>Плавные переходы</span></label>
-          <label class="switch" title="Следующий трек начинается раньше и звучит поверх этого, а этот плавно затихает — без паузы на стыке"><input type="checkbox" id="xfDj" /><i></i><span>DJ-переход</span></label>
+          <label class="switch" title="Следующий трек начинается раньше и звучит поверх этого, а этот плавно затихает"><input type="checkbox" id="xfDj" /><i></i><span>DJ-переход</span></label>
           <label class="slide" id="xfDjRow" title="Сколько секунд треки звучат вместе"><span>Наложение · <b id="xfDjLenV">8 с</b></span><input type="range" id="xfDjLen" min="2" max="15" step="1" /></label>
           <label class="switch" title="Пока играет «Моя волна», следующим ставится трек с похожим темпом и в соседней тональности — из тех, что волна уже прислала. Подходящего нет — порядок не меняется"><input type="checkbox" id="xfMatch" /><i></i><span>Волна по темпу и тональности</span></label>
         </div>
+        <div class="card" id="pageCacheCard" data-tab="play">
+          <h3>Кэш страниц <i class="hint" title="Список «Лайков» хранится на диске: после запуска страница появляется сразу, а у Яндекса спрашиваются только новые треки. Описания треков (обложки, доступность) обновляются раз в сутки. Плейлисты и авторы хранятся в памяти до перезапуска.">i</i></h3>
+          <div class="pcrows">
+            <span>Снимок «Лайков»</span><b id="pcSnap">—</b>
+            <span>Описания треков</span><b id="pcAt">—</b>
+            <span>Чтение с диска</span><b id="pcRead">—</b>
+            <span>Последнее открытие</span><b id="pcLast">—</b>
+            <span>В памяти</span><b id="pcMem">—</b>
+          </div>
+          <div class="row">
+            <button class="nav" id="pcRefresh">Обновить</button>
+            <button class="nav danger" id="pcClear" title="Стереть снимок «Лайков» с диска. Следующий запуск загрузит лайки с Яндекса заново и сохранит новый снимок">Сбросить снимок</button>
+          </div>
         <div class="card colbreak" id="dlCard" data-tab="play">
           <h3>Скачивание треков</h3>
           <div class="dlpath"><small>Папка для треков</small><span id="dlPath">—</span></div>
@@ -611,19 +625,6 @@
             <button class="nav danger" id="cacheClear">Очистить кэш</button>
           </div>
         </div>
-        <div class="card" id="pageCacheCard" data-tab="play">
-          <h3>Кэш страниц <i class="hint" title="Список «Лайков» хранится на диске: после запуска страница появляется сразу, а у Яндекса спрашиваются только новые треки. Описания треков (обложки, доступность) обновляются раз в сутки. Плейлисты и авторы хранятся в памяти до перезапуска.">i</i></h3>
-          <div class="pcrows">
-            <span>Снимок «Лайков»</span><b id="pcSnap">—</b>
-            <span>Описания треков</span><b id="pcAt">—</b>
-            <span>Чтение с диска</span><b id="pcRead">—</b>
-            <span>Последнее открытие</span><b id="pcLast">—</b>
-            <span>В памяти</span><b id="pcMem">—</b>
-          </div>
-          <div class="row">
-            <button class="nav" id="pcRefresh">Обновить</button>
-            <button class="nav danger" id="pcClear" title="Стереть снимок «Лайков» с диска. Следующий запуск загрузит лайки с Яндекса заново и сохранит новый снимок">Сбросить снимок</button>
-          </div>
         </div>
 
         <!-- ===== Звук: Устройство, Профили | Вывод и качество, Нормализация, Формат ===== -->
@@ -632,12 +633,6 @@
           <div id="outList" class="outlist" role="radiogroup" aria-label="Устройство вывода"></div>
           <div class="row"><button type="button" class="nav" id="outRefresh">Обновить список</button></div>
           <p class="status" id="outNote"></p>
-        </div>
-        <div class="card" id="castCard" data-tab="out">
-          <h3>Телевизор <i class="hint" title="Телевизор или колонка с DLNA в той же сети, что и компьютер. Звук идёт только из телевизора, а Whisper остаётся пультом. В первый раз Windows может спросить доступ к сети — разреши, иначе телевизор не получит трек.">i</i></h3>
-          <div id="castList" class="outlist" role="radiogroup" aria-label="Телевизор"></div>
-          <div class="row"><button type="button" class="nav" id="castScan">Найти телевизоры</button><button type="button" class="nav" id="castOff" hidden>Отключить</button></div>
-          <p class="status" id="castNote"></p>
         </div>
         <div class="card" id="dpCard" data-tab="out">
           <h3>Профили устройств <i class="hint" title="Громкость, нормализация, режим вывода и эквалайзер запоминаются для каждого устройства отдельно и возвращаются, когда звук снова идёт на него.">i</i></h3>
@@ -673,6 +668,14 @@
           <h3>Сведения о формате</h3>
           <dl id="fmtList" class="fmtlist"></dl>
           <div class="row"><button type="button" class="nav" id="fmtRefresh">Обновить</button></div>
+        </div>
+
+        <!-- вывод на телевизор (cast.js, Rust — dlna.rs): в «Интеграциях» -->
+        <div class="card" id="castCard" data-tab="int">
+          <h3>Подключение к телевизору <i class="hint" title="Телевизор или колонка с DLNA в той же сети. Звук — из телевизора, управление — в приложении и с пульта. При первом подключении Windows может запросить доступ к сети.">i</i></h3>
+          <div id="castList" class="outlist" role="radiogroup" aria-label="Телевизор"></div>
+          <div class="row"><button type="button" class="nav" id="castScan">Найти телевизоры</button><button type="button" class="nav" id="castOff" hidden>Отключить</button></div>
+          <p class="status" id="castNote"></p>
         </div>
 
         <!-- ===== Приложение: Трей, Уведомления | Горячие клавиши, Обновления ===== -->

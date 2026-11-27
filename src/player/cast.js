@@ -1,4 +1,4 @@
-// Вывод на телевизор (DLNA / UPnP; Rust — dlna.rs): Настройки → Звук → «Телевизор».
+// Вывод на телевизор (DLNA / UPnP; Rust — dlna.rs): Настройки → Интеграции → «Подключение к телевизору».
 //
 // Как и свой движок (engine.js), это «плеер» со свойствами и событиями <audio>: core.js (makeAudio) создаёт его, пока
 // выбран телевизор, и дальше работает как с обычным — очередь, «Далее», перемотка, история, Discord и т. п. не знают,
@@ -7,6 +7,9 @@
 // Состояние телевизора опрашивается раз в секунду: пауза и запуск с пульта телевизора видны и здесь; трек доиграл
 // (телевизор остановился у конца) — ended, как у обычного плеера. Остановили раньше конца — это пауза.
 // Громкость: меняется только ползунком громкости приложения — нормализация и переходы громкость телевизора не трогают.
+// Следующий трек очереди передаётся телевизору заранее (dlna_next → SetNextAVTransportURI): «Далее» на пульте и
+// переход без паузы. Телевизор сам перешёл на него (опрос видит его ключ) — для приложения это конец трека, а
+// dlna_cast, увидев тот же номер, ничего не перезапускает (dlna.rs → adopt).
 import { COVER_W, invoke, lsJSON } from "../app/base.js";
 import { showToast } from "../app/menu.js";
 import { play } from "./core.js";
@@ -36,6 +39,8 @@ import { play } from "./core.js";
     im.src = COVER_W;
   }).then((v) => { if (!v) artP = null; return v; }));
   const artistOf = (t) => (Array.isArray(t?.artists) ? t.artists.map((a) => a?.name).filter(Boolean).join(", ") : "");
+  const albumOf = (t) => String((Array.isArray(t?.albums) && t.albums[0]?.title) || "").slice(0, 200);
+  const metaOf = (t) => ({ title: String(t?.title || "Трек"), artist: artistOf(t), album: albumOf(t), cover: coverOf(t) });
 
   class CastAudio extends EventTarget {
     constructor() {
@@ -114,7 +119,8 @@ import { play } from "./core.js";
       const t = queue[current];
       this._track = tr; this._start = start; this._pos = start; this.ended = false; this.error = null;
       this._dur = durHint > 0 ? durHint : NaN;
-      this._meta = { title: String(t?.title || "Трек"), artist: artistOf(t), cover: coverOf(t) };
+      this._meta = metaOf(t);
+      this._key = String(t?.id ?? "");
     }
     play() {
       if (!this._track) return Promise.reject(Object.assign(new Error("нет трека"), { name: "NotSupportedError" }));
@@ -136,6 +142,7 @@ import { play } from "./core.js";
       this._req++;
       clearInterval(this._poll); clearInterval(this._tick); this._poll = this._tick = null;
       this._loaded = false; this._track = null; this.paused = true; this.readyState = 0; this._sawPlay = false;
+      this._tok = ""; this._nextTok = ""; clearTimeout(this._nextT);
     }
     async _load() {
       const my = ++this._req, tr = this._track, m = this._meta || {};
@@ -144,9 +151,9 @@ import { play } from "./core.js";
       try {
         const art = m.cover ? null : await placeholderArt();
         if (my !== this._req) throw Object.assign(new Error("устарело"), { name: "AbortError" });
-        await invoke("dlna_cast", {
-          device: dev.id, kind: tr.kind, id: tr.id, quality: tr.quality || null,
-          title: m.title || "", artist: m.artist || "", cover: m.cover || null, art,
+        this._tok = await invoke("dlna_cast", {
+          device: dev.id, kind: tr.kind, id: tr.id, key: this._key || null, quality: tr.quality || null,
+          title: m.title || "", artist: m.artist || "", album: m.album || null, cover: m.cover || null, art,
           dur: this._dur > 0 ? this._dur : 0, start: this._start || 0,
         });
       } catch (e) {
@@ -169,6 +176,27 @@ import { play } from "./core.js";
       else this._emit("playing");
       this._tick = setInterval(() => { if (!this.paused) this._emit("timeupdate"); }, 250);
       this._poll = setInterval(() => this._status(my), 1000);
+      this._nextT = setTimeout(() => this.prepNext(), 3000);     // сначала пусть заиграет этот
+    }
+    // Следующий трек очереди — телевизору заранее. Только то, что телевизор может взять сам: трек Яндекса или
+    // скачанный/из кэша (свои версии студии, замены и треки комнаты включает приложение, когда этот доиграет).
+    async prepNext() {
+      if (!this._loaded || !this._tok || !dev) return;
+      const my = this._req;
+      const nx = window.Whisper?.queue?.upcoming?.(1)?.[0]?.track;
+      const id = nx ? String(nx.id ?? "") : "";
+      if (!nx || !/^\d+$/.test(id) || nx._room || window.studioReplacement?.(id)) return;
+      const local = got.has(id) || !!window.appCache?.has(id);
+      const m = metaOf(nx);
+      try {
+        const art = m.cover ? null : await placeholderArt();
+        const tok = await invoke("dlna_next", {
+          after: this._tok, kind: local ? "local" : "ym", id, key: id, quality: window.ymQuality?.() || "high",
+          title: m.title, artist: m.artist, album: m.album || null, cover: m.cover || null, art,
+          dur: (nx.durationMs || 0) / 1000,
+        });
+        if (my === this._req) this._nextTok = tok;
+      } catch (e) { if (!/устарело/.test(String(e))) console.info("Телевизор: следующий трек заранее не передан —", e); }
     }
     async _status(my) {
       if (this._busy || my !== this._req) return;
@@ -179,6 +207,15 @@ import { play } from "./core.js";
       if (!s || my !== this._req || this.seeking) return;
       // телевизор ещё не дошёл до нового места после перемотки — его старое место не возвращает ползунок назад
       if (performance.now() - (this._seekAt || 0) < 3000 && Math.abs(s.pos - this.currentTime) > 3) s.pos = 0;
+      // телевизор сам перешёл на заранее переданный следующий трек («Далее» на пульте или этот доиграл):
+      // для приложения это конец трека — оно включит следующий, а dlna_cast узнает его и ничего не перезапустит
+      if (s.track && this._nextTok && s.track === this._nextTok && s.track !== this._tok) {
+        this._sawPlay = false; this._nextTok = "";
+        this._pos = this._dur > 0 ? this._dur : this._pos; this.ended = true; this.paused = true;
+        clearInterval(this._poll); clearInterval(this._tick);
+        this._emit("pause"); this._emit("ended");
+        return;
+      }
       if (s.dur > 0) this._dur = s.dur;
       const state = s.state;
       if (state === "PLAYING") {
@@ -208,6 +245,12 @@ import { play } from "./core.js";
   }
 
   window.cast = { on: () => !!dev, device: () => dev, create: () => new CastAudio() };
+  // очередь поменялась (перемешали, переставили, «играть следующим») — следующий трек телевизору заново
+  let qT = 0;
+  window.Whisper?.on?.("queue", () => {
+    clearTimeout(qT);
+    qT = setTimeout(() => { if (audio?._cast) audio.prepNext?.(); }, 1500);
+  });
 
   // ---------- подключение ----------
   // трек переезжает с того же места; на паузе — остаётся на паузе
@@ -258,15 +301,15 @@ import { play } from "./core.js";
       }
     }
     const btn = $c("castScan");
-    if (btn) { btn.disabled = scanning; btn.textContent = scanning ? "Ищу…" : "Найти телевизоры"; }
+    if (btn) { btn.disabled = scanning; btn.textContent = scanning ? "Поиск…" : "Найти телевизоры"; }
     if ($c("castOff")) $c("castOff").hidden = !dev;
     const note = $c("castNote");
     if (note) {
-      note.textContent = scanning ? "Ищу телевизоры в сети…"
-        : dev ? `Играет на «${dev.name}». Пауза и перемотка — здесь, звук — из телевизора.`
-        : found.length ? "Выбери, куда вывести звук."
-        : scanned ? "Ничего не нашлось. Телевизор включён и в той же сети? Если Windows спрашивала про доступ к сети — разреши его Whisper."
-        : last.name ? `В прошлый раз — «${last.name}». Нажми «Найти», чтобы подключиться снова.` : "";
+      note.textContent = scanning ? "Поиск в сети…"
+        : dev ? `Звук идёт на «${dev.name}»`
+        : found.length ? "Найденные устройства:"
+        : scanned ? "Не найдено. Телевизор должен быть включён и в той же сети."
+        : last.name ? `Прошлое подключение — «${last.name}»` : "";
     }
     document.documentElement.classList.toggle("casting", !!dev);
   }

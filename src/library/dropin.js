@@ -93,7 +93,7 @@ import { isLiked, toggleLike } from "../player/like.js";
     const list = files.filter((f) => AUDIO.test(String(f?.name || "")) && Number.isInteger(f?.id));
     if (!list.length) return false;
     const big = list.filter((f) => f.size > MAX);
-    if (big.length) toast(`«${big[0].name}» больше 100 МБ — такие треки не берём`, 6000, { kind: "err" });
+    if (big.length) toast(`«${big[0].name}» больше 100 МБ — такие треки не принимаются`, 6000, { kind: "err" });
     pending.push(...list.filter((f) => f.size <= MAX).map((f, i, all) => ({ ...f, n: i + 1, of: all.length })));
     next();
     return true;
@@ -185,7 +185,7 @@ import { isLiked, toggleLike } from "../player/like.js";
         const text = q.value.trim();
         if (!text || text === lastQ) return;
         lastQ = text;
-        qnote.textContent = "Ищу…";
+        qnote.textContent = "Поиск…";
         try {
           const r = await W.provider().search(text, "track");
           if (lastQ !== text) return;
@@ -340,7 +340,7 @@ import { isLiked, toggleLike } from "../player/like.js";
           const cu = picked ? W.cover(picked, 800) : "";
           if (cu) args.coverUrl = cu; else args.coverBytes = await plainCover(args.albumTitle);
         }
-        yes.textContent = "Загружаю…";
+        yes.textContent = "Отправка…";
         const r = await invoke("drop_audio_archive", args);
         if (r.status < 200 || r.status >= 300) {
           let m = ""; try { const b = JSON.parse(r.body || "null"); m = b?.message || b?.title || ""; } catch {}

@@ -203,7 +203,7 @@ function paintInfo(ed) {
   if (!ed?.buf) { box.hidden = true; return; }
   box.hidden = false;
   const t = ed.t, al = t.albums?.[0] || {}, f = ed.info?.file, s = ed.info?.sound;
-  const wait = "считаю…";
+  const wait = "подсчёт…";
   const rows = [];
   const add = (label, value, sub = "", title = "") => rows.push({ label, value, sub, title });
   // по звуку

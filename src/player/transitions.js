@@ -101,6 +101,16 @@ import { effRepeat, modesActive } from "./modes.js";
     if (id !== curId) onTrack();
     const e = measure(t);
     const dur = audio.duration, pos = audio.currentTime || 0;
+    // DJ-переход: вход этого трека — по синусу за время наложения. До проверки замера: раньше громкость поднималась
+    // только при готовом замере краёв, и если он не готов или не удался (свой файл, архив, ошибка декодера), трек
+    // так и играл с громкостью 0 — полоска шла, звука не было. Без замера вход считается от начала файла.
+    // (в эксклюзивном режиме громкостями обоих треков управляет engine.rs — здесь только ждём конца наложения)
+    if (djIn && djIn.id === id && !audio.paused) {
+      const s0 = e && typeof e === "object" ? e.start || 0 : 0;
+      const p = Math.max(0, Math.min(1, (pos - s0) / djIn.len));
+      if (!djIn.native) { djK = Math.sin((p * Math.PI) / 2); try { audio.volume = outVol(audio); } catch {} }
+      if (p >= 1) { djIn = null; djK = 1; }
+    }
     if (!e || !isFinite(dur) || !dur || audio.paused) return;
     const nx = peekNext();
     if (pos > 3 && nx) measure(nx);               // следующий меряем заранее
@@ -110,13 +120,6 @@ import { effRepeat, modesActive } from "./modes.js";
     const end = (st.silence || djOn()) && e.end < dur - 0.3 ? e.end : dur;
     waveMatch(e, id, pos, end);
 
-    // DJ-переход: вход этого трека — по синусу за время наложения
-    // (в эксклюзивном режиме громкостями обоих треков управляет engine.rs — здесь только ждём конца наложения)
-    if (djIn && djIn.id === id) {
-      const p = Math.max(0, Math.min(1, (pos - e.start) / djIn.len));
-      if (!djIn.native) { djK = Math.sin((p * Math.PI) / 2); try { audio.volume = outVol(audio); } catch {} }
-      if (p >= 1) { djIn = null; djK = 1; }
-    }
     // DJ-переход: до конца звучащей части осталось время наложения — включаем следующий (тем же путём, что и конец
     // трека: обратная связь волны, повтор, очередь), а этот заберёт xfTail и доиграет сам
     if (djOn() && nx && fired !== id && !tail) {

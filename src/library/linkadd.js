@@ -103,7 +103,7 @@ import { routeLink } from "./linkalbum.js";
     inp.autocomplete = "off"; inp.spellcheck = false;
     const go = el("button", "nav active", "Скачать"); go.type = "submit";
     line.append(inp, go);
-    const note = el("p", "addnote", "YouTube, SoundCloud, видео и клипы ВКонтакте; плейлист или длинное видео — соберу альбом");
+    const note = el("p", "addnote", "YouTube, SoundCloud, видео и клипы ВКонтакте; из плейлиста или длинного видео собирается альбом");
     const msg = el("p", "status addmsg");
     const or = el("div", "addor"); or.append(el("span", "", "или"));
     const zone = el("button", "adddrop"); zone.type = "button";

@@ -101,7 +101,7 @@ import { renderList } from "../app/list.js";
     if (dt) { dt.close(); return; }
     dt = openDetails({ title: "Шрифт интерфейса", sub: "Щёлкни — шрифт сразу применится", adopt: [box, note], onClose: () => { dt = null; } });
     if (!fonts) {
-      note.textContent = "Читаю список шрифтов…";
+      note.textContent = "Чтение списка шрифтов…";
       await loadFonts();
       if (!fonts.length) { note.textContent = "Не удалось получить список шрифтов: пересобери приложение (нужна команда system_fonts из fonts.rs)."; return; }
     }
