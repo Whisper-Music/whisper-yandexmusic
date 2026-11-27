@@ -52,6 +52,7 @@ import { play } from "./core.js";
       this.crossOrigin = null; this.preservesPitch = true; this.defaultPlaybackRate = 1; this.sinkId = "";
       this.onplay = this.onpause = this.onplaying = this.onended = this.ontimeupdate = this.onseeked = null;
       this._poll = null; this._tick = null; this._busy = false; this._sawPlay = false;
+      this._state = ""; this._loadAt = 0; this._kick = 0;
     }
     _emit(type) {
       try { this["on" + type]?.call(this, new Event(type)); } catch (e) { console.error(e); }
@@ -83,14 +84,15 @@ import { play } from "./core.js";
       if (this._seekBusy) return;
       this._seekBusy = true;
       try {
-        for (let tries = 0; tries < 6 && this._want !== null; tries++) {
+        // Android-телевизоры по 3–6 с загружают трек (TRANSITIONING) и всё это время перемотку отвергают
+        for (let tries = 0; tries < 16 && this._want !== null; tries++) {
           const t = this._want; this._want = null;
           try { await invoke("dlna_seek", { pos: t }); }
           catch (e) {
             // «Transition not available» — телевизор ещё занят прошлой перемоткой: повтор чуть позже
             console.warn("Телевизор:", e);
             if (this._want === null) this._want = t;
-            await new Promise((r) => setTimeout(r, 400));
+            await new Promise((r) => setTimeout(r, 600));
           }
         }
       } finally {
@@ -133,8 +135,16 @@ import { play } from "./core.js";
       if (this.paused) return;
       this._pos = this.currentTime;
       this.paused = true;
-      if (this._loaded) invoke("dlna_pause").catch(() => {});
+      if (this._loaded && this._state !== "STOPPED") this._pauseTv(this._req);
       this._emit("pause");
+    }
+    async _pauseTv(my, tries = 0) {
+      try { await invoke("dlna_pause"); }
+      catch (e) {
+        if (/Transition not available/i.test(String(e)) && tries < 8 && my === this._req && this.paused) {
+          setTimeout(() => this._pauseTv(my, tries + 1), 700);
+        }
+      }
     }
     load() { if (!this._track) this._unload(); }
     removeAttribute(name) { if (name === "src") this._unload(); }
@@ -143,6 +153,7 @@ import { play } from "./core.js";
       clearInterval(this._poll); clearInterval(this._tick); this._poll = this._tick = null;
       this._loaded = false; this._track = null; this.paused = true; this.readyState = 0; this._sawPlay = false;
       this._tok = ""; this._nextTok = ""; clearTimeout(this._nextT);
+      this._state = ""; this._kick = 0;
     }
     async _load() {
       const my = ++this._req, tr = this._track, m = this._meta || {};
@@ -170,7 +181,7 @@ import { play } from "./core.js";
         throw this.error;
       }
       if (my !== this._req) throw Object.assign(new Error("устарело"), { name: "AbortError" });
-      this._loaded = true; this.readyState = 4; this._pos = this._start || 0; this._at = performance.now();
+      this._loaded = true; this.readyState = 4; this._pos = this._start || 0; this._at = performance.now(); this._loadAt = performance.now();
       this._emit("loadedmetadata");
       if (this.paused) invoke("dlna_pause").catch(() => {});        // пауза нажата, пока телевизор загружал
       else this._emit("playing");
@@ -183,7 +194,10 @@ import { play } from "./core.js";
     async prepNext() {
       if (!this._loaded || !this._tok || !dev) return;
       const my = this._req;
-      const nx = window.Whisper?.queue?.upcoming?.(1)?.[0]?.track;
+      // трек — из очереди приложения по номеру: upcoming() отдаёт сущность ядра (без coverUri, альбомов и _room),
+      // с ней телевизору уходило «пустое» описание, а то и ничего — и пульт считал текущий трек последним
+      const up = window.Whisper?.queue?.upcoming?.(1)?.[0];
+      const nx = up && Number.isInteger(up.index) ? queue[up.index] : null;
       const id = nx ? String(nx.id ?? "") : "";
       if (!nx || !/^\d+$/.test(id) || nx._room || window.studioReplacement?.(id)) return;
       const local = got.has(id) || !!window.appCache?.has(id);
@@ -196,7 +210,10 @@ import { play } from "./core.js";
           dur: (nx.durationMs || 0) / 1000,
         });
         if (my === this._req) this._nextTok = tok;
-      } catch (e) { if (!/устарело/.test(String(e))) console.info("Телевизор: следующий трек заранее не передан —", e); }
+      } catch (e) {
+        // часть телевизоров не умеет SetNextAVTransportURI — тогда следующий включает приложение, когда этот доиграет
+        if (!/устарело/.test(String(e))) console.warn("Телевизор: следующий трек заранее не передан —", e);
+      }
     }
     async _status(my) {
       if (this._busy || my !== this._req) return;
@@ -218,6 +235,23 @@ import { play } from "./core.js";
       }
       if (s.dur > 0) this._dur = s.dur;
       const state = s.state;
+      this._state = state;
+      // телевизор взял трек, но так и не заиграл (остановился, пока загружал): ещё раз Play — через 6 с и через 14 с.
+      // Без этого приложение ждало вечно — полоска шла, звука не было, следующий не включался
+      if (!this._sawPlay && !this.paused && state === "STOPPED") {
+        const wait = performance.now() - this._loadAt;
+        if ((wait > 6000 && this._kick === 0) || (wait > 14000 && this._kick === 1)) {
+          this._kick++;
+          invoke("dlna_play").catch(() => {});
+        } else if (wait > 24000 && this._kick === 2) {
+          this._kick++;
+          this.paused = true; this._loaded = false; this._start = 0;
+          clearInterval(this._poll); clearInterval(this._tick);
+          showToast("Телевизор не начал играть трек — нажми «Играть», чтобы попробовать ещё раз", 8000, { kind: "err" });
+          this._emit("pause");
+          return;
+        }
+      }
       if (state === "PLAYING") {
         this._sawPlay = true;
         if (s.pos > 0 || this._pos < 2) { this._pos = s.pos; this._at = performance.now(); }

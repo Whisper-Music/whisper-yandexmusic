@@ -801,11 +801,17 @@ pub async fn dlna_cast(
         let meta = didl(&tok, &url, mime, &meta, cover.as_deref());
         let set = |d: &Renderer| soap(&d.avt, "SetAVTransportURI", &[("InstanceID", "0".into()), ("CurrentURI", url.clone()), ("CurrentURIMetaData", meta.clone())]);
         if set(&dev).is_err() {
-            // часть телевизоров не берёт новый трек, пока играет старый
+            // часть телевизоров не берёт новый трек, пока играет старый или ещё не ответил на прошлую команду
             let _ = soap(&dev.avt, "Stop", &[("InstanceID", "0".into())]);
+            std::thread::sleep(Duration::from_millis(600));
             set(&dev)?;
         }
-        soap(&dev.avt, "Play", &[("InstanceID", "0".into()), ("Speed", "1".into())])?;
+        let play = || soap(&dev.avt, "Play", &[("InstanceID", "0".into()), ("Speed", "1".into())]);
+        if play().is_err() {
+            // занят загрузкой трека («Transition not available») или не успел ответить — ещё раз чуть позже
+            std::thread::sleep(Duration::from_millis(1200));
+            play()?;
+        }
         if start > 1.0 {
             // перематывать можно, когда телевизор уже начал играть
             let until = Instant::now() + Duration::from_secs(8);
@@ -971,13 +977,9 @@ pub async fn dlna_status() -> Result<Status, String> {
     blocking(move || {
         let t = soap(&d.avt, "GetTransportInfo", &[("InstanceID", "0".into())])?;
         let p = soap(&d.avt, "GetPositionInfo", &[("InstanceID", "0".into())]).unwrap_or_default();
-        let volume = d
-            .rc
-            .as_ref()
-            .and_then(|rc| soap(rc, "GetVolume", &[("InstanceID", "0".into()), ("Channel", "Master".into())]).ok())
-            .and_then(|r| tag(&r, "CurrentVolume")?.parse::<f64>().ok())
-            .map(|v| (v / 100.0).clamp(0.0, 1.0))
-            .unwrap_or(-1.0);
+        // громкость не спрашиваем: страница её не читает, а каждый лишний запрос раз в секунду — нагрузка на слабые
+        // телевизоры (Android-плееры DLNA переставали отвечать вовсе: «connection timed out»)
+        let volume = -1.0;
         Ok(Status {
             state: tag(&t, "CurrentTransportState").unwrap_or_default(),
             pos: tag(&p, "RelTime").map(|s| secs(&s)).unwrap_or(0.0),

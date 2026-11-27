@@ -2629,6 +2629,7 @@ add({
   "Новый плейлист в Яндекс Музыке": "New playlist in Yandex Music",
   "Треки хранятся на этом компьютере и видны в плейлисте в приложении": "The tracks stay on this computer and show up in the playlist in the app",
   "Сначала войди в Яндекс": "Sign in to Yandex first",
+  "Телевизор не начал играть трек — нажми «Играть», чтобы попробовать ещё раз": "The TV didn't start the track — press Play to try again",
   "Дай плейлисту название": "Give the playlist a title",
   "не удалось создать плейлист: {}": "couldn't create the playlist: {}",
   "В плейлист: трек {} из {}…": num("To the playlist: track {} of {}…"),

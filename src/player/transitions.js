@@ -63,6 +63,9 @@ import { effRepeat, modesActive } from "./modes.js";
   }
   const active = () => {
     if (!st.silence && !st.smooth && !st.dj && !st.match) return false;
+    // телевизор (cast.js) — без переходов: пока он 3–6 с загружает трек, перемотку («пропустить тишину» в начале)
+    // он отвергает, а то и останавливается совсем, так и не начав играть следующий
+    if (audio?._cast) return false;
     const r = window.roomInfo?.();
     return !(r && !r.host);
   };
@@ -222,19 +225,23 @@ import { effRepeat, modesActive } from "./modes.js";
     armed = null;
     if (!a || !el || el.paused || !st.dj || el._cast) return false;
     stopTail();
+    // входящий трек — уже текущий: play() сначала показывает его (showTrack → событие «track» → onTrack), а потом
+    // зовёт xfTail. Пустой id здесь onTrack уже не заполнил бы — громкость нового так и оставалась 0 (полоска шла,
+    // звука не было), поэтому номер берём сразу
+    const inId = String(queue[current]?.id ?? "");
     for (const ev of ["onplay", "onpause", "onplaying", "onended", "ontimeupdate", "onseeked", "onerror", "onwaiting", "onstalled"]) el[ev] = null;
     if (el._native) {
       // эксклюзивный режим: прошлый доигрывает внутри движка, новый engine.js загрузит через engine_dj
       el._detach?.();
       tail = { el, native: true, blob: null, len: a.len, t0: performance.now() };
       nativeDj = { len: a.len, start: a.start, t: performance.now() };
-      djIn = { id: "", len: a.len, native: true };
+      djIn = { id: inId, len: a.len, native: true };
       djK = 1;
       return true;
     }
     tail = { el, blob: curBlob || null, len: a.len, t0: performance.now(), base: el.volume, vol0: volume || 1 };
     curBlob = null;
-    djIn = { id: "", len: a.len };
+    djIn = { id: inId, len: a.len };
     djK = 0;
     return true;
   };
